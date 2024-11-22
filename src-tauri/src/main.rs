@@ -4,13 +4,12 @@
 )]
 
 use serde::Serialize;
+use serde_json::Value;
 use tokio_postgres::{NoTls, Row};
 use tokio_postgres::types::Type;
 use uuid::Uuid;
-use time::OffsetDateTime;
-use tauri::Manager;
-use serde_json::Value;
 use rust_decimal::Decimal;
+use time::OffsetDateTime;
 
 #[derive(Debug, Serialize)]
 struct QueryResult {
@@ -118,16 +117,10 @@ async fn execute_query(connection_string: String, query: String) -> Result<Query
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![execute_query])
-        .setup(|app| {
+        .setup(|_app| {
             #[cfg(debug_assertions)]
             {
-                if let Some(window) = app.get_window("main") {
-                    println!("Found main window, opening dev tools");
-                    window.open_devtools();
-                    println!("Dev tools opened");
-                } else {
-                    eprintln!("Main window not found!");
-                }
+                println!("Debug mode: skipping dev tools");
             }
             Ok(())
         })
