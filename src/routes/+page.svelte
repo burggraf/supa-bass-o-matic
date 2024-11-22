@@ -5,6 +5,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Textarea } from "$lib/components/ui/textarea";
     import { Label } from "$lib/components/ui/label";
+    import * as Table from "$lib/components/ui/table";
 
     let connectionString = '';
     let sqlQuery = '';
@@ -99,25 +100,27 @@
     {#if queryResult}
         <div class="results">
             <h2>Query Results</h2>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            {#each queryResult.columns as column}
-                                <th>{column}</th>
-                            {/each}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {#each queryResult.rows as row}
-                            <tr>
-                                {#each row as cell}
-                                    <td>{cell}</td>
+            <div class="relative">
+                <div class="rounded-md border">
+                    <Table.Root>
+                        <Table.Header>
+                            <Table.Row>
+                                {#each queryResult.columns as column}
+                                    <Table.Head>{column}</Table.Head>
                                 {/each}
-                            </tr>
-                        {/each}
-                    </tbody>
-                </table>
+                            </Table.Row>
+                        </Table.Header>
+                        <Table.Body>
+                            {#each queryResult.rows as row}
+                                <Table.Row>
+                                    {#each row as cell}
+                                        <Table.Cell>{cell}</Table.Cell>
+                                    {/each}
+                                </Table.Row>
+                            {/each}
+                        </Table.Body>
+                    </Table.Root>
+                </div>
             </div>
         </div>
     {/if}
@@ -157,30 +160,6 @@
 
     .results {
         margin-top: 2rem;
-    }
-
-    .table-container {
-        overflow-x: auto;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 1rem;
-    }
-
-    th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-    }
-
-    th {
-        background-color: #f2f2f2;
-    }
-
-    tr:nth-child(even) {
-        background-color: #f9f9f9;
     }
 
     .debug-output {
