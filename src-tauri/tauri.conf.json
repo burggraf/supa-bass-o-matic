@@ -36,13 +36,13 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "Supa Bass-a-matic",
+        "title": "supa-bass-a-matic",
         "width": 800,
         "height": 600
       }
     ],
     "cli": {
-      "description": "Supa Bass-a-matic PostgreSQL Query Tool",
+      "description": "supa-bass-a-matic PostgreSQL Query Tool",
       "args": []
     }
   }

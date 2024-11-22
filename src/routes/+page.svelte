@@ -6,7 +6,7 @@
     import { Textarea } from "$lib/components/ui/textarea";
     import { Label } from "$lib/components/ui/label";
     import * as Table from "$lib/components/ui/table";
-    import { Root as Select, Content as SelectContent, Item as SelectItem, Trigger as SelectTrigger } from "$lib/components/ui/select";
+    import * as Select from "$lib/components/ui/select/index.js";
 
     let connectionString = '';
     let connectionStrings: string[] = [];
@@ -136,20 +136,20 @@
                 <Label>Saved Connections</Label>
                 <div class="flex gap-2">
                     <div class="flex-1">
-                        <Select type="single" value={selectedConnectionString} onValueChange={handleConnectionChange}>
-                            <SelectTrigger class="w-full">
+                        <Select.Select type="single" value={selectedConnectionString} onValueChange={handleConnectionChange}>
+                            <Select.Trigger class="w-full">
                                 <span class="truncate">
                                     {selectedConnectionString || "Select a saved connection"}
                                 </span>
-                            </SelectTrigger>
-                            <SelectContent>
+                            </Select.Trigger>
+                            <Select.Content>
                                 {#each connectionStrings as conn}
-                                    <SelectItem value={conn}>
+                                    <Select.Item value={conn}>
                                         {conn}
-                                    </SelectItem>
+                                    </Select.Item>
                                 {/each}
-                            </SelectContent>
-                        </Select>
+                            </Select.Content>
+                        </Select.Select>
                     </div>
                     {#if selectedConnectionString}
                         <Button 
