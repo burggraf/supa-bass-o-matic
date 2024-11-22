@@ -4,8 +4,16 @@ import { defineConfig } from 'vite';
 export default defineConfig({
 	plugins: [sveltekit()],
 	server: {
-		port: 1420,
-		strictPort: true
+		port: 5173,
+		strictPort: true,
+		watch: {
+			// Watch for changes in these directories
+			ignored: ['**/node_modules/**', '**/dist/**'],
+		},
+		hmr: {
+			protocol: 'ws',
+			host: 'localhost',
+		},
 	},
 	// Vite options tailored for Tauri development
 	clearScreen: false,
