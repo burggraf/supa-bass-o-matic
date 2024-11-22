@@ -18,7 +18,7 @@ npm install
 # Step 2: Build the app
 echo -e "${YELLOW}Building the application...${NC}"
 npm run build
-cargo tauri build
+npm run tauri build
 
 # Step 3: Sign the app
 echo -e "${YELLOW}Preparing to sign the application...${NC}"
