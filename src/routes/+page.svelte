@@ -7,10 +7,17 @@
     import { Label } from "$lib/components/ui/label";
     import * as Table from "$lib/components/ui/table";
     import * as Select from "$lib/components/ui/select/index.js";
+    import { effect } from 'svelte';
+
+    interface Connection {
+        title: string;
+        url: string;
+    }
 
     let connectionString = '';
-    let connectionStrings: string[] = [];
-    let selectedConnectionString = '';
+    let connectionTitle = '';
+    let connections: Connection[] = [];
+    let selectedConnection: Connection | null = null;
     let sqlQuery = '';
     let queryResult: { columns: string[], rows: string[][] } | null = null;
     let error: string | null = null;
@@ -19,53 +26,69 @@
 
     onMount(() => {
         console.log('Component mounted');
-        loadConnectionStrings();
+        loadConnections();
     });
 
-    function loadConnectionStrings() {
-        console.log('Loading connection strings');
-        const stored = localStorage.getItem('connectionStrings');
+    function loadConnections() {
+        console.log('Loading connections');
+        const stored = localStorage.getItem('connections');
         if (stored) {
-            connectionStrings = JSON.parse(stored);
-            console.log('Loaded connection strings:', connectionStrings);
-            if (connectionStrings.length > 0) {
-                selectedConnectionString = connectionStrings[0];
-                connectionString = selectedConnectionString;
-                console.log('Selected first connection string:', selectedConnectionString);
+            connections = JSON.parse(stored);
+            console.log('Loaded connections:', connections);
+            if (connections.length > 0) {
+                selectedConnection = connections[0];
+                connectionString = selectedConnection.url;
+                connectionTitle = selectedConnection.title;
+                console.log('Selected first connection:', selectedConnection);
             }
         } else {
-            console.log('No stored connection strings found');
+            console.log('No stored connections found');
         }
     }
 
-    function saveConnectionStrings() {
-        localStorage.setItem('connectionStrings', JSON.stringify(connectionStrings));
+    function saveConnections() {
+        localStorage.setItem('connections', JSON.stringify(connections));
     }
 
     function addCurrentConnection() {
-        if (connectionString && !connectionStrings.includes(connectionString)) {
-            connectionStrings = [...connectionStrings, connectionString];
-            selectedConnectionString = connectionString;
-            saveConnectionStrings();
-            addDebug(`Added new connection string: ${connectionString}`);
+        if (connectionString && connectionTitle) {
+            const newConnection = {
+                title: connectionTitle,
+                url: connectionString
+            };
+            
+            // Check if connection with same URL already exists
+            const existingIndex = connections.findIndex(conn => conn.url === connectionString);
+            if (existingIndex === -1) {
+                connections = [...connections, newConnection];
+                selectedConnection = newConnection;
+                saveConnections();
+                addDebug(`Added new connection: ${connectionTitle} (${connectionString})`);
+            }
+            // Clear the input fields
+            connectionTitle = '';
+            connectionString = '';
         }
-    }
-
-    function deleteConnection(conn: string) {
-        connectionStrings = connectionStrings.filter(c => c !== conn);
-        if (selectedConnectionString === conn) {
-            selectedConnectionString = connectionStrings[0] || '';
-            connectionString = selectedConnectionString;
-        }
-        saveConnectionStrings();
-        addDebug(`Deleted connection string: ${conn}`);
     }
 
     function handleConnectionChange(value: string) {
-        console.log('Connection changed:', value);
-        selectedConnectionString = value;
-        connectionString = value;
-        addDebug(`Selected connection string: ${value}`);
+        const selected = connections.find(conn => conn.url === value);
+        if (selected) {
+            selectedConnection = selected;
+            connectionString = selected.url;
+            connectionTitle = selected.title;
+        }
+    }
+
+    function deleteConnection(url: string) {
+        connections = connections.filter(conn => conn.url !== url);
+        if (selectedConnection?.url === url) {
+            selectedConnection = connections[0] || null;
+            connectionString = selectedConnection?.url || '';
+            connectionTitle = selectedConnection?.title || '';
+        }
+        saveConnections();
+        addDebug(`Deleted connection with URL: ${url}`);
     }
 
     function addDebug(message: string) {
@@ -103,7 +126,10 @@
         }
     }
 
-    $: console.log('selectedConnectionString changed:', selectedConnectionString);
+    effect(() => {
+        console.log('selectedConnection changed:', selectedConnection);
+    });
+
 </script>
 
 <div class="min-h-screen bg-white text-gray-900">
@@ -112,6 +138,18 @@
         
         <div class="space-y-6">
             <div class="space-y-2">
+                <Label for="connection-title">Connection Title</Label>
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <Input 
+                            id="connection-title"
+                            type="text" 
+                            bind:value={connectionTitle} 
+                            placeholder="My Database Connection"
+                        />
+                    </div>
+                </div>
+
                 <Label for="connection-string">Connection String</Label>
                 <div class="flex gap-2">
                     <div class="flex-1">
@@ -126,6 +164,7 @@
                         onclick={addCurrentConnection}
                         variant="outline"
                         class="whitespace-nowrap"
+                        disabled={!connectionString || !connectionTitle}
                     >
                         Save Connection
                     </Button>
@@ -136,24 +175,24 @@
                 <Label>Saved Connections</Label>
                 <div class="flex gap-2">
                     <div class="flex-1">
-                        <Select.Select type="single" value={selectedConnectionString} onValueChange={handleConnectionChange}>
+                        <Select.Select type="single" value={selectedConnection?.url} onValueChange={handleConnectionChange}>
                             <Select.Trigger class="w-full">
                                 <span class="truncate">
-                                    {selectedConnectionString || "Select a saved connection"}
+                                    {selectedConnection ? `${selectedConnection.title} (${selectedConnection.url})` : "Select a saved connection"}
                                 </span>
                             </Select.Trigger>
                             <Select.Content>
-                                {#each connectionStrings as conn}
-                                    <Select.Item value={conn}>
-                                        {conn}
+                                {#each connections as conn}
+                                    <Select.Item value={conn.url}>
+                                        {conn.title} ({conn.url})
                                     </Select.Item>
                                 {/each}
                             </Select.Content>
                         </Select.Select>
                     </div>
-                    {#if selectedConnectionString}
+                    {#if selectedConnection}
                         <Button 
-                            onclick={() => deleteConnection(selectedConnectionString)}
+                            onclick={() => deleteConnection(selectedConnection.url)}
                             variant="destructive"
                             class="whitespace-nowrap"
                         >
