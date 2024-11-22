@@ -32,7 +32,19 @@ fn convert_to_string(row: &Row, i: usize) -> String {
                 None => "NULL".to_string(),
             }
         },
-        &Type::INT2 | &Type::INT4 | &Type::INT8 => {
+        &Type::INT2 => {
+            match row.get::<_, Option<i16>>(i) {
+                Some(n) => n.to_string(),
+                None => "NULL".to_string(),
+            }
+        },
+        &Type::INT4 => {
+            match row.get::<_, Option<i32>>(i) {
+                Some(n) => n.to_string(),
+                None => "NULL".to_string(),
+            }
+        },
+        &Type::INT8 => {
             match row.get::<_, Option<i64>>(i) {
                 Some(n) => n.to_string(),
                 None => "NULL".to_string(),

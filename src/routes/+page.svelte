@@ -1,6 +1,10 @@
 <script lang="ts">
     import { invoke } from '@tauri-apps/api/tauri'
     import { onMount } from 'svelte';
+    import { Input } from "$lib/components/ui/input";
+    import { Button } from "$lib/components/ui/button";
+    import { Textarea } from "$lib/components/ui/textarea";
+    import { Label } from "$lib/components/ui/label";
 
     let connectionString = '';
     let sqlQuery = '';
@@ -54,37 +58,36 @@
     
     <div class="query-form">
         <div class="input-group">
-            <label for="connection-string">Connection String:</label>
-            <input 
+            <Label for="connection-string">Connection String</Label>
+            <Input 
                 id="connection-string"
                 type="text" 
                 bind:value={connectionString} 
                 placeholder="postgres://user:pass@host:5432/database"
-                class="input"
             />
         </div>
 
         <div class="input-group">
-            <label for="sql-query">SQL Query:</label>
-            <textarea 
+            <Label for="sql-query">SQL Query</Label>
+            <Textarea 
                 id="sql-query"
                 bind:value={sqlQuery} 
                 placeholder="SELECT * FROM your_table"
-                class="textarea"
-            ></textarea>
+                class="min-h-[100px]"
+            />
         </div>
 
-        <button 
-            class="execute-button" 
-            on:click={handleClick}
+        <Button 
+            onclick={handleClick}
             disabled={isLoading}
+            variant="default"
         >
             {#if isLoading}
                 Executing...
             {:else}
                 Execute Query
             {/if}
-        </button>
+        </Button>
     </div>
 
     {#if error}
@@ -137,65 +140,18 @@
     }
 
     .query-form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        margin: 2rem 0;
+        margin-bottom: 2rem;
     }
 
     .input-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    label {
-        font-weight: bold;
-    }
-
-    .input {
-        padding: 0.5rem;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 1rem;
-        width: 100%;
-    }
-
-    .textarea {
-        padding: 0.5rem;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 1rem;
-        width: 100%;
-        min-height: 150px;
-        font-family: monospace;
-    }
-
-    .execute-button {
-        padding: 0.5rem 1rem;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 1rem;
-        transition: background-color 0.2s;
-    }
-
-    .execute-button:hover {
-        background-color: #0056b3;
-    }
-
-    .execute-button:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
+        margin-bottom: 1rem;
     }
 
     .error {
         color: red;
         margin: 1rem 0;
         padding: 1rem;
-        background-color: #ffebee;
+        border: 1px solid red;
         border-radius: 4px;
     }
 
@@ -215,12 +171,12 @@
 
     th, td {
         border: 1px solid #ddd;
-        padding: 0.5rem;
+        padding: 8px;
         text-align: left;
     }
 
     th {
-        background-color: #f5f5f5;
+        background-color: #f2f2f2;
     }
 
     tr:nth-child(even) {
@@ -235,24 +191,16 @@
     }
 
     .debug-container {
-        max-height: 300px;
+        max-height: 200px;
         overflow-y: auto;
-        font-family: monospace;
-        font-size: 0.9rem;
-        background-color: #2b2b2b;
-        color: #ffffff;
-        padding: 1rem;
+        border: 1px solid #ddd;
+        padding: 0.5rem;
         border-radius: 4px;
     }
 
     .debug-line {
-        padding: 0.25rem 0;
-        border-bottom: 1px solid #3d3d3d;
+        font-family: monospace;
         white-space: pre-wrap;
-        word-break: break-all;
-    }
-
-    .debug-line:last-child {
-        border-bottom: none;
+        margin-bottom: 0.25rem;
     }
 </style>
