@@ -40,6 +40,10 @@
         "width": 800,
         "height": 600
       }
-    ]
+    ],
+    "cli": {
+      "description": "Supa Bass-a-matic PostgreSQL Query Tool",
+      "args": []
+    }
   }
 }
