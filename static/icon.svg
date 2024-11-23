@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Chrome Base -->
+    <path d="M156 352L356 352L376 472H136L156 352Z" fill="currentColor"/>
+    
+    <!-- Base Details -->
+    <rect x="186" y="372" width="140" height="20" rx="2" fill="white" fill-opacity="0.3"/>
+    <rect x="186" y="402" width="140" height="20" rx="2" fill="white" fill-opacity="0.3"/>
+    <rect x="186" y="432" width="140" height="20" rx="2" fill="white" fill-opacity="0.3"/>
+    
+    <!-- Glass Jar -->
+    <path d="M146 120L366 120L336 352H176L146 120Z" fill="currentColor" fill-opacity="0.8"/>
+    
+    <!-- Measuring Lines -->
+    <path d="M166 160L346 160M176 220L336 220M186 280L326 280" 
+          stroke="white" 
+          stroke-width="8" 
+          stroke-linecap="round"
+          stroke-opacity="0.4"/>
+    
+    <!-- Lid -->
+    <path d="M136 80H376L366 120H146L136 80Z" fill="currentColor"/>
+    
+    <!-- Cap -->
+    <rect x="226" y="40" width="60" height="40" rx="4" fill="currentColor"/>
+    
+    <!-- Handle -->
+    <path d="M336 160C366 160 376 180 376 200V240C376 260 366 280 336 280" 
+          stroke="currentColor" 
+          stroke-width="20"
+          fill="none"/>
+</svg>

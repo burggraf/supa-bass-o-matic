@@ -3,6 +3,14 @@
 # Exit on error
 set -e
 
+# Load environment variables from .env file
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+else
+    echo "No .env file found. Please create one with APPLE_ID and APPLE_ID_PASSWORD variables."
+    exit 1
+fi
+
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -47,14 +55,15 @@ codesign --force --deep --options runtime --keychain ~/Library/Keychains/login.k
 echo -e "${YELLOW}Creating ZIP archive for notarization...${NC}"
 ditto -c -k --keepParent "$APP_PATH" "Supa Bass-a-matic.zip"
 
+# Check if environment variables are set
+if [ -z "$APPLE_ID" ] || [ -z "$APPLE_ID_PASSWORD" ]; then
+    echo -e "${RED}APPLE_ID or APPLE_ID_PASSWORD not set in .env file${NC}"
+    exit 1
+fi
+
 # Notarize the app
 echo -e "${YELLOW}Submitting app for notarization...${NC}"
-echo -e "${YELLOW}Please enter your Apple ID email:${NC}"
-read APPLE_ID
-echo -e "${YELLOW}Please enter your app-specific password:${NC}"
-read -s APP_SPECIFIC_PASSWORD
-
-xcrun notarytool submit "Supa Bass-a-matic.zip" --apple-id "$APPLE_ID" --password "$APP_SPECIFIC_PASSWORD" --team-id "HEGN9W2S9J" --wait
+xcrun notarytool submit "Supa Bass-a-matic.zip" --apple-id "$APPLE_ID" --password "$APPLE_ID_PASSWORD" --team-id "HEGN9W2S9J" --wait
 
 # Clean up ZIP file
 rm "Supa Bass-a-matic.zip"
