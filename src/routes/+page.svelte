@@ -29,6 +29,7 @@
     let isEditing = $state(false);
     let isDebugVisible = $state(false);
     let selectRef: { close: () => void } | null = $state(null);
+    let indexAdvisorStatus = $state('unknown');
 
     // Format cell value based on column type and content
     function formatCellValue(value: any, columnName: string): string {
@@ -115,11 +116,12 @@
     }
 
     function handleConnectionChange(value: string) {
-        const selected = connections.find(conn => conn.url === value);
-        if (selected) {
-            selectedConnection = selected;
-            connectionString = selected.url;
-            connectionTitle = selected.title;
+        const conn = connections.find(c => c.url === value);
+        if (conn) {
+            selectedConnection = conn;
+            connectionString = conn.url;
+            connectionTitle = conn.title;
+            indexAdvisorStatus = 'unknown';
         }
     }
 
@@ -175,6 +177,34 @@
         }
     }
 
+    async function checkIndexAdvisorStatus() {
+        if (!connectionString) return;
+        
+        try {
+            // First check if extension is installed
+            const installedResult = await invoke('execute_query', {
+                connectionString,
+                query: "SELECT extname FROM pg_extension WHERE extname = 'index_advisor'"
+            });
+            
+            if (installedResult.rows.length > 0) {
+                indexAdvisorStatus = 'installed';
+                return;
+            }
+            
+            // If not installed, check if it's available
+            const availableResult = await invoke('execute_query', {
+                connectionString,
+                query: "SELECT name FROM pg_available_extensions WHERE name = 'index_advisor'"
+            });
+            
+            indexAdvisorStatus = availableResult.rows.length > 0 ? 'available' : 'not available';
+        } catch (e) {
+            console.error('Error checking index advisor status:', e);
+            indexAdvisorStatus = 'unknown';
+        }
+    }
+
     $effect(() => {
         // console.log('selectedConnection changed:', selectedConnection);
     });
@@ -182,12 +212,27 @@
 
 <div class="min-h-screen bg-white text-gray-900">
     <main class="container mx-auto py-8 px-4">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold">supa-bass-o-matic PostgreSQL Query Tool</h1>
-            <Button onclick={() => isDialogOpen = true}>
-                <Plus class="w-4 h-4 mr-2" />
-                Add Connection
-            </Button>
+        <div class="grid grid-cols-3 items-center mb-6">
+            <div class="justify-self-start">
+                {#if selectedConnection}
+                    <Button 
+                        variant={indexAdvisorStatus === 'installed' ? 'default' : 
+                                indexAdvisorStatus === 'available' ? 'outline' : 
+                                indexAdvisorStatus === 'not available' ? 'destructive' : 'secondary'}
+                        onclick={checkIndexAdvisorStatus}
+                        disabled={!selectedConnection}
+                    >
+                        Index Advisor Status: {indexAdvisorStatus}
+                    </Button>
+                {/if}
+            </div>
+            <h1 class="text-3xl font-bold text-center justify-self-center">supa-bass-o-matic</h1>
+            <div class="justify-self-end">
+                <Button onclick={() => isDialogOpen = true}>
+                    <Plus class="w-4 h-4 mr-2" />
+                    Add Connection
+                </Button>
+            </div>
         </div>
         
         <div class="space-y-4">
@@ -249,7 +294,7 @@
                     <Label>SQL Query</Label>
                     <div class="space-y-4">
                         <SqlPresets 
-                            on:select={(e) => {
+                            onselect={(e) => {
                                 sqlQuery = e.detail;
                                 error = null;  // Clear previous errors
                             }}
