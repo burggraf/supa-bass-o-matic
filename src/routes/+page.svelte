@@ -27,6 +27,7 @@
     let isInitialized = $state(false);
     let isDialogOpen = $state(false);
     let isEditing = $state(false);
+    let isDebugVisible = $state(false);
     let selectRef: { close: () => void } | null = $state(null);
 
     // Format cell value based on column type and content
@@ -320,13 +321,25 @@
                     </div>
                 {/if}
 
-                <div class="mt-6 p-4 bg-gray-50 rounded-md">
-                    <h3 class="text-lg font-semibold mb-2">Debug Output ({debugOutput.length} messages)</h3>
-                    <div class="max-h-[200px] overflow-y-auto border border-gray-200 rounded-md p-2 bg-white">
-                        {#each debugOutput as message}
-                            <div class="font-mono text-sm whitespace-pre-wrap mb-1">{message}</div>
-                        {/each}
+                <div class="mt-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            onclick={() => isDebugVisible = !isDebugVisible}
+                        >
+                            {isDebugVisible ? 'Hide' : 'Show'} Debug Output ({debugOutput.length})
+                        </Button>
                     </div>
+                    {#if isDebugVisible}
+                        <div class="p-4 bg-gray-50 rounded-md">
+                            <div class="max-h-[200px] overflow-y-auto border border-gray-200 rounded-md p-2 bg-white">
+                                {#each debugOutput as message}
+                                    <div class="font-mono text-sm whitespace-pre-wrap mb-1">{message}</div>
+                                {/each}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
             </div>
 
