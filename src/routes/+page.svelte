@@ -21,11 +21,15 @@
     let error = $state<string | null>(null);
     let debugOutput = $state<string[]>([]);
     let isLoading = $state(false);
+    let isInitialized = $state(false);
 
-    // Load connections on mount
+    // Load connections only once on mount
     $effect(() => {
-        console.log('Component mounted');
-        loadConnections();
+        if (!isInitialized) {
+            console.log('Component mounted');
+            loadConnections();
+            isInitialized = true;
+        }
     });
 
     function loadConnections() {
@@ -64,7 +68,7 @@
                 saveConnections();
                 addDebug(`Added new connection: ${connectionTitle} (${connectionString})`);
             }
-            // Clear the input fields
+            // Clear the input fields after successful add
             connectionTitle = '';
             connectionString = '';
         }
@@ -126,7 +130,7 @@
     }
 
     $effect(() => {
-        console.log('selectedConnection changed:', selectedConnection);
+        // console.log('selectedConnection changed:', selectedConnection);
     });
 </script>
 
