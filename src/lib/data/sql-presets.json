@@ -185,6 +185,84 @@
       "title": "Schema: schemas",
       "description": "Shows CREATE SCHEMA statements for all schemas in the database",
       "sql": "SELECT nspname AS schema_name FROM pg_namespace WHERE nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast') AND nspname NOT LIKE 'pg_temp_%' AND nspname NOT LIKE 'pg_toast_temp_%';"
+    },
+    {
+      "id": "32",
+      "title": "Schema: composite types",
+      "description": "Shows CREATE TYPE statements for composite types",
+      "sql": "SELECT\n    'CREATE TYPE ' || quote_ident(n.nspname) || '.' || quote_ident(t.typname) ||\n    ' AS (' ||\n    string_agg(\n        quote_ident(a.attname) || ' ' || format_type(a.atttypid, a.atttypmod),\n        ', '\n        ORDER BY a.attnum\n    ) || ');' AS create_type\nFROM\n    pg_type t\n    JOIN pg_namespace n ON n.oid = t.typnamespace\n    JOIN pg_class c ON c.oid = t.typrelid\n    JOIN pg_attribute a ON a.attrelid = c.oid\nWHERE\n    t.typtype = 'c'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND a.attnum > 0 AND NOT a.attisdropped\nGROUP BY\n    n.nspname, t.typname;"
+    },
+    {
+      "id": "33",
+      "title": "Schema: enumerated types",
+      "description": "Shows CREATE TYPE statements for enumerated types",
+      "sql": "SELECT\n    'CREATE TYPE ' || quote_ident(n.nspname) || '.' || quote_ident(t.typname) ||\n    ' AS ENUM (' ||\n    string_agg(quote_literal(e.enumlabel), ', ' ORDER BY e.enumsortorder) ||\n    ');' AS create_enum\nFROM\n    pg_type t\n    JOIN pg_namespace n ON n.oid = t.typnamespace\n    JOIN pg_enum e ON t.oid = e.enumtypid\nWHERE\n    t.typtype = 'e'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\nGROUP BY\n    n.nspname, t.typname;"
+    },
+    {
+      "id": "34",
+      "title": "Schema: materialized views",
+      "description": "Shows CREATE MATERIALIZED VIEW statements",
+      "sql": "SELECT\n    'CREATE MATERIALIZED VIEW ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    ' AS ' || pg_get_viewdef(c.oid, true) ||\n    ';' AS create_mat_view\nFROM\n    pg_class c\n    JOIN pg_namespace n ON n.oid = c.relnamespace\nWHERE\n    c.relkind = 'm'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema');"
+    },
+    {
+      "id": "35",
+      "title": "Schema: text search parsers",
+      "description": "Shows CREATE TEXT SEARCH PARSER statements",
+      "sql": "SELECT\n    'CREATE TEXT SEARCH PARSER ' || quote_ident(n.nspname) || '.' || quote_ident(p.prsname) ||\n    ' (' ||\n    'START = ' || quote_ident(ns.nspname) || '.' || p.prsstart::text || ', ' ||\n    'GETTOKEN = ' || quote_ident(ng.nspname) || '.' || p.prstoken::text || ', ' ||\n    'END = ' || quote_ident(ne.nspname) || '.' || p.prsend::text || ', ' ||\n    'LEXTYPES = ' || quote_ident(nl.nspname) || '.' || p.prslextype::text ||\n    CASE WHEN p.prsheadline IS NOT NULL THEN ', HEADLINE = ' || quote_ident(nh.nspname) || '.' || p.prsheadline::text ELSE '' END ||\n    ');' AS create_ts_parser\nFROM\n    pg_ts_parser p\n    JOIN pg_namespace n ON p.prsnamespace = n.oid\n    JOIN pg_proc ps ON p.prsstart = ps.oid\n    JOIN pg_namespace ns ON ps.pronamespace = ns.oid\n    JOIN pg_proc pg ON p.prstoken = pg.oid\n    JOIN pg_namespace ng ON pg.pronamespace = ng.oid\n    JOIN pg_proc pe ON p.prsend = pe.oid\n    JOIN pg_namespace ne ON pe.pronamespace = ne.oid\n    JOIN pg_proc pl ON p.prslextype = pl.oid\n    JOIN pg_namespace nl ON pl.pronamespace = nl.oid\n    LEFT JOIN pg_proc ph ON p.prsheadline = ph.oid\n    LEFT JOIN pg_namespace nh ON ph.pronamespace = nh.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema');"
+    },
+    {
+      "id": "36",
+      "title": "Schema: text search templates",
+      "description": "Shows CREATE TEXT SEARCH TEMPLATE statements",
+      "sql": "SELECT\n    'CREATE TEXT SEARCH TEMPLATE ' || quote_ident(n.nspname) || '.' || quote_ident(t.tmplname) ||\n    ' (' ||\n    CASE WHEN t.tmplinit IS NOT NULL THEN 'INIT = ' || quote_ident(ni.nspname) || '.' || t.tmplinit::text || ', ' ELSE '' END ||\n    'LEXIZE = ' || quote_ident(nl.nspname) || '.' || t.tmpllexize::text ||\n    ');' AS create_ts_template\nFROM\n    pg_ts_template t\n    JOIN pg_namespace n ON t.tmplnamespace = n.oid\n    LEFT JOIN pg_proc pi ON t.tmplinit = pi.oid\n    LEFT JOIN pg_namespace ni ON pi.pronamespace = ni.oid\n    JOIN pg_proc pl ON t.tmpllexize = pl.oid\n    JOIN pg_namespace nl ON pl.pronamespace = nl.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema');"
+    },
+    {
+      "id": "37",
+      "title": "Schema: foreign data wrappers",
+      "description": "Shows CREATE FOREIGN DATA WRAPPER statements",
+      "sql": "SELECT\n    'CREATE FOREIGN DATA WRAPPER ' || quote_ident(fdw.fdwname) ||\n    CASE WHEN fdw.fdwhandler <> 0 THEN ' HANDLER ' || pg_get_function_identity_arguments(fdw.fdwhandler) ELSE '' END ||\n    CASE WHEN fdw.fdwvalidator <> 0 THEN ' VALIDATOR ' || pg_get_function_identity_arguments(fdw.fdwvalidator) ELSE '' END ||\n    ';' AS create_fdw\nFROM\n    pg_foreign_data_wrapper fdw\nWHERE\n    fdw.fdwname NOT IN ('postgres_fdw', 'file_fdw');"
+    },
+    {
+      "id": "38",
+      "title": "Schema: foreign servers",
+      "description": "Shows CREATE SERVER statements",
+      "sql": "SELECT\n    'CREATE SERVER ' || quote_ident(srv.srvname) ||\n    ' FOREIGN DATA WRAPPER ' || quote_ident(fdw.fdwname) ||\n    CASE WHEN srv.srvtype IS NOT NULL THEN ' TYPE ' || quote_literal(srv.srvtype) ELSE '' END ||\n    CASE WHEN srv.srvversion IS NOT NULL THEN ' VERSION ' || quote_literal(srv.srvversion) ELSE '' END ||\n    (CASE WHEN srv.srvoptions IS NOT NULL THEN ' OPTIONS (' || array_to_string(srv.srvoptions, ', ') || ')' ELSE '' END) ||\n    ';' AS create_server\nFROM\n    pg_foreign_server srv\n    JOIN pg_foreign_data_wrapper fdw ON srv.srvfdw = fdw.oid;"
+    },
+    {
+      "id": "39",
+      "title": "Schema: user mappings",
+      "description": "Shows CREATE USER MAPPING statements",
+      "sql": "SELECT\n    'CREATE USER MAPPING FOR ' || quote_ident(um.usename) ||\n    ' SERVER ' || quote_ident(srv.srvname) ||\n    (CASE WHEN um.umoptions IS NOT NULL THEN ' OPTIONS (' || array_to_string(um.umoptions, ', ') || ')' ELSE '' END) ||\n    ';' AS create_user_mapping\nFROM\n    pg_user_mappings um\n    JOIN pg_foreign_server srv ON um.srvid = srv.oid;"
+    },
+    {
+      "id": "40",
+      "title": "Schema: row level security policies",
+      "description": "Shows CREATE POLICY statements",
+      "sql": "SELECT\n    'CREATE POLICY ' || quote_ident(pol.polname) ||\n    ' ON ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    CASE WHEN pol.polcmd::text != '*' THEN ' FOR ' || pol.polcmd::text ELSE '' END ||\n    CASE WHEN pol.polroles <> '{0}' THEN ' TO ' || array_to_string(array(SELECT quote_ident(rolname) FROM pg_roles WHERE oid = ANY(pol.polroles)), ', ') ELSE '' END ||\n    CASE WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_get_expr(pol.polqual, pol.polrelid) || ')' ELSE '' END ||\n    CASE WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_get_expr(pol.polwithcheck, pol.polrelid) || ')' ELSE '' END ||\n    ';' AS create_policy\nFROM\n    pg_policy pol\n    JOIN pg_class c ON pol.polrelid = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema');"
+    },
+    {
+      "id": "41",
+      "title": "Schema: publications",
+      "description": "Shows CREATE PUBLICATION statements",
+      "sql": "SELECT\n    'CREATE PUBLICATION ' || quote_ident(pub.pubname) ||\n    CASE WHEN pub.puballtables THEN ' FOR ALL TABLES' ELSE ' FOR TABLE ' || string_agg(quote_ident(n.nspname) || '.' || quote_ident(c.relname), ', ') END ||\n    ';' AS create_publication\nFROM\n    pg_publication pub\n    LEFT JOIN pg_publication_rel pr ON pub.oid = pr.prpubid\n    LEFT JOIN pg_class c ON pr.prrelid = c.oid\n    LEFT JOIN pg_namespace n ON c.relnamespace = n.oid\nGROUP BY\n    pub.pubname, pub.puballtables;"
+    },
+    {
+      "id": "42",
+      "title": "Schema: extensions",
+      "description": "Shows CREATE EXTENSION statements",
+      "sql": "SELECT\n    'CREATE EXTENSION IF NOT EXISTS ' || quote_ident(ext.extname) ||\n    ' WITH SCHEMA ' || quote_ident(n.nspname) ||\n    CASE WHEN ext.extversion IS NOT NULL THEN ' VERSION ' || quote_literal(ext.extversion) ELSE '' END ||\n    ';' AS create_extension\nFROM\n    pg_extension ext\n    JOIN pg_namespace n ON ext.extnamespace = n.oid\nWHERE\n    ext.extname NOT IN ('plpgsql');"
+    },
+    {
+      "id": "43",
+      "title": "Schema: statistics",
+      "description": "Shows CREATE STATISTICS statements",
+      "sql": "SELECT\n    'CREATE STATISTICS ' || quote_ident(s.stxname) ||\n    ' (' || array_to_string(ARRAY(\n        SELECT (CASE WHEN stxkind[i] = 'd' THEN 'NDISTINCT' WHEN stxkind[i] = 'f' THEN 'DEPENDENCIES' WHEN stxkind[i] = 'm' THEN 'MCV' END)\n        FROM generate_subscripts(s.stxkind, 1) as i\n    ), ', ') || ')' ||\n    ' ON ' || array_to_string(ARRAY_AGG(quote_ident(a.attname)), ', ') ||\n    ' FROM ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) || ';' AS create_statistics\nFROM\n    pg_statistic_ext s\n    JOIN pg_class c ON s.stxrelid = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\n    JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(s.stxkeys)\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nGROUP BY\n    s.stxname, s.stxkind, n.nspname, c.relname;"
+    },
+    {
+      "id": "44",
+      "title": "Schema: comments",
+      "description": "Shows COMMENT ON statements for tables, views, and materialized views",
+      "sql": "SELECT\n    'COMMENT ON TABLE ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    ' IS ' || quote_literal(obj_description(c.oid, 'pg_class')) || ';' AS comment_table\nFROM\n    pg_class c\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    c.relkind IN ('r', 'v', 'm')\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND obj_description(c.oid, 'pg_class') IS NOT NULL;"
     }
   ]
 }
