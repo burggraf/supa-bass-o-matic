@@ -7,7 +7,7 @@
     import * as Table from "$lib/components/ui/table";
     import * as Select from "$lib/components/ui/select";
     import * as Dialog from "$lib/components/ui/dialog";
-    import { Trash2, Check, Plus } from "lucide-svelte";
+    import { Trash2, Check, Plus, Pencil } from "lucide-svelte";
 
     interface Connection {
         title: string;
@@ -25,6 +25,8 @@
     let isLoading = $state(false);
     let isInitialized = $state(false);
     let isDialogOpen = $state(false);
+    let isEditing = $state(false);
+    let selectRef: { close: () => void } | null = $state(null);
 
     // Load connections only once on mount
     $effect(() => {
@@ -32,6 +34,14 @@
             console.log('Component mounted');
             loadConnections();
             isInitialized = true;
+        }
+    });
+
+    // Clear fields when dialog opens for new connection
+    $effect(() => {
+        if (isDialogOpen && !isEditing) {
+            connectionString = '';
+            connectionTitle = '';
         }
     });
 
@@ -63,18 +73,30 @@
                 url: connectionString
             };
             
-            // Check if connection with same URL already exists
-            const existingIndex = connections.findIndex(conn => conn.url === connectionString);
-            if (existingIndex === -1) {
+            if (isEditing) {
+                // Update existing connection
+                connections = connections.map(conn => 
+                    conn.url === selectedConnection?.url ? newConnection : conn
+                );
+                selectedConnection = newConnection;
+            } else {
+                // Add new connection
                 connections = [...connections, newConnection];
                 selectedConnection = newConnection;
-                saveConnections();
-                addDebug(`Added new connection: ${connectionTitle} (${connectionString})`);
             }
-            // Clear the input fields after successful add
-            connectionTitle = '';
-            connectionString = '';
+            
+            saveConnections();
+            addDebug(`${isEditing ? 'Updated' : 'Added new'} connection: ${connectionTitle}`);
+            isEditing = false;
         }
+    }
+
+    function editConnection(conn: Connection) {
+        selectRef?.close();
+        connectionTitle = conn.title;
+        connectionString = conn.url;
+        isEditing = true;
+        isDialogOpen = true;
     }
 
     function handleConnectionChange(value: string) {
@@ -152,10 +174,15 @@
                 <div class="grid grid-cols-[150px_1fr] items-center gap-4">
                     <Label>Saved Connections</Label>
                     <div class="flex gap-2">
-                        <Select.Select type="single" value={selectedConnection?.url} onValueChange={handleConnectionChange}>
+                        <Select.Select 
+                            type="single" 
+                            value={selectedConnection?.url} 
+                            onValueChange={handleConnectionChange}
+                            ref={selectRef}
+                        >
                             <Select.Trigger class="w-full">
                                 <span class="truncate">
-                                    {selectedConnection ? `${selectedConnection.title} (${selectedConnection.url})` : "Select a saved connection"}
+                                    {selectedConnection ? selectedConnection.title : "Select a saved connection"}
                                 </span>
                             </Select.Trigger>
                             <Select.Content>
@@ -163,12 +190,26 @@
                                     <Select.Item value={conn.url}>
                                         <div class="flex items-center justify-between w-full">
                                             <span>{conn.title}</span>
-                                            <button
-                                                class="text-red-500 hover:text-red-700"
-                                                onclick={() => deleteConnection(conn.url)}
-                                            >
-                                                <Trash2 class="w-4 h-4" />
-                                            </button>
+                                            <div class="flex gap-2">
+                                                <button
+                                                    class="text-blue-500 hover:text-blue-700"
+                                                    onclick={(e) => {
+                                                        e.preventDefault();
+                                                        editConnection(conn);
+                                                    }}
+                                                >
+                                                    <Pencil class="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    class="text-red-500 hover:text-red-700"
+                                                    onclick={(e) => {
+                                                        e.preventDefault();
+                                                        deleteConnection(conn.url);
+                                                    }}
+                                                >
+                                                    <Trash2 class="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </Select.Item>
                                 {/each}
@@ -248,11 +289,11 @@
         </div>
 
         <Dialog.Dialog bind:open={isDialogOpen}>
-            <Dialog.DialogContent>
+            <Dialog.DialogContent class="z-[100]">
                 <Dialog.DialogHeader>
-                    <Dialog.DialogTitle>Add Connection</Dialog.DialogTitle>
+                    <Dialog.DialogTitle>{isEditing ? 'Edit' : 'Add'} Connection</Dialog.DialogTitle>
                     <Dialog.DialogDescription>
-                        Enter the connection details below.
+                        {isEditing ? 'Update the connection details below.' : 'Enter the connection details below.'}
                     </Dialog.DialogDescription>
                 </Dialog.DialogHeader>
 
@@ -276,7 +317,10 @@
                 </div>
 
                 <Dialog.DialogFooter>
-                    <Button variant="outline" onclick={() => isDialogOpen = false}>
+                    <Button variant="outline" onclick={() => {
+                        isDialogOpen = false;
+                        isEditing = false;
+                    }}>
                         Cancel
                     </Button>
                     <Button 
@@ -287,7 +331,7 @@
                         }}
                     >
                         <Check class="w-4 h-4 mr-2" />
-                        Save Connection
+                        {isEditing ? 'Update' : 'Save'} Connection
                     </Button>
                 </Dialog.DialogFooter>
             </Dialog.DialogContent>
