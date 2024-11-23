@@ -6,6 +6,7 @@
     import { Label } from "$lib/components/ui/label";
     import * as Table from "$lib/components/ui/table";
     import * as Select from "$lib/components/ui/select/index.js";
+    import { Trash2, Check } from "lucide-svelte";
 
     interface Connection {
         title: string;
@@ -164,11 +165,12 @@
                     </div>
                     <Button 
                         onclick={addCurrentConnection}
-                        variant="outline"
-                        class="whitespace-nowrap"
+                        variant="success"
+                        size="icon"
+                        class="bg-green-600 hover:bg-green-700 text-white"
                         disabled={!connectionString || !connectionTitle}
                     >
-                        Save Connection
+                        <Check class="h-4 w-4" />
                     </Button>
                 </div>
             </div>
@@ -196,9 +198,9 @@
                         <Button 
                             onclick={() => deleteConnection(selectedConnection.url)}
                             variant="destructive"
-                            class="whitespace-nowrap"
+                            size="icon"
                         >
-                            Delete Connection
+                            <Trash2 class="h-4 w-4" />
                         </Button>
                     {/if}
                 </div>
