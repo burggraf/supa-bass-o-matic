@@ -140,34 +140,37 @@
         <h1 class="text-3xl font-bold mb-6">Supa Bass-a-matic PostgreSQL Query Tool</h1>
         
         <div class="space-y-4">
-            <div class="grid grid-cols-[150px_1fr] items-center gap-4">
-                <Label for="connection-title">Connection Title</Label>
-                <Input 
-                    id="connection-title"
-                    type="text" 
-                    bind:value={connectionTitle} 
-                    placeholder="My Database Connection"
-                />
-            </div>
-
-            <div class="grid grid-cols-[150px_1fr] items-center gap-4">
-                <Label for="connection-string">Connection String</Label>
-                <div class="flex gap-2">
+            <div class="flex items-center gap-4">
+                <div class="grid grid-cols-[80px_200px] items-center gap-4">
+                    <Label for="connection-title">Title</Label>
                     <Input 
-                        id="connection-string"
+                        id="connection-title"
                         type="text" 
-                        bind:value={connectionString} 
-                        placeholder="postgres://user:pass@host:5432/database"
+                        bind:value={connectionTitle} 
+                        placeholder="My Database Connection"
                     />
-                    <Button 
-                        onclick={addCurrentConnection}
-                        variant="success"
-                        size="icon"
-                        class="bg-green-600 hover:bg-green-700 text-white"
-                        disabled={!connectionString || !connectionTitle}
-                    >
-                        <Check class="h-4 w-4" />
-                    </Button>
+                </div>
+
+                <div class="grid grid-cols-[120px_1fr] items-center gap-4 flex-1">
+                    <Label for="connection-string">Connection String</Label>
+                    <div class="flex gap-2">
+                        <Input 
+                            id="connection-string"
+                            type="text" 
+                            bind:value={connectionString} 
+                            placeholder="postgres://user:pass@host:5432/database"
+                            class="flex-1"
+                        />
+                        <Button 
+                            onclick={addCurrentConnection}
+                            variant="success"
+                            size="icon"
+                            class="bg-green-600 hover:bg-green-700 text-white"
+                            disabled={!connectionString || !connectionTitle}
+                        >
+                            <Check class="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
             </div>
 
