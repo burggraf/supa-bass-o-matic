@@ -2,9 +2,10 @@
 <script lang="ts">
 import presets from '$lib/data/sql-presets.json';
 import * as Select from '$lib/components/ui/select';
-import { createEventDispatcher } from 'svelte';
 
-const dispatch = createEventDispatcher();
+let { onselect } = $props<{
+  onselect: (sql: string) => void;
+}>();
 
 let selectedPresetId = $state('');
 
@@ -12,7 +13,7 @@ function handlePresetSelect(value: string) {
   selectedPresetId = value;
   const preset = presets.presets.find(p => p.id === value);
   if (preset) {
-    dispatch('select', preset.sql);
+    onselect(preset.sql);
   }
 }
 </script>

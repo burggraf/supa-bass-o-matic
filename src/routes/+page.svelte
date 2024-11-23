@@ -317,7 +317,7 @@
                     <div class="space-y-4">
                         <SqlPresets 
                             onselect={(e) => {
-                                sqlQuery = e.detail;
+                                sqlQuery = e;
                                 error = null;  // Clear previous errors
                             }}
                         />
