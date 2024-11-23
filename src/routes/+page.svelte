@@ -1,30 +1,29 @@
 <script lang="ts">
     import { invoke } from '@tauri-apps/api/tauri'
-    import { onMount } from 'svelte';
     import { Input } from "$lib/components/ui/input";
     import { Button } from "$lib/components/ui/button";
     import { Textarea } from "$lib/components/ui/textarea";
     import { Label } from "$lib/components/ui/label";
     import * as Table from "$lib/components/ui/table";
     import * as Select from "$lib/components/ui/select/index.js";
-    import { effect } from 'svelte';
 
     interface Connection {
         title: string;
         url: string;
     }
 
-    let connectionString = '';
-    let connectionTitle = '';
-    let connections: Connection[] = [];
-    let selectedConnection: Connection | null = null;
-    let sqlQuery = '';
-    let queryResult: { columns: string[], rows: string[][] } | null = null;
-    let error: string | null = null;
-    let debugOutput: string[] = [];
-    let isLoading = false;
+    let connectionString = $state('');
+    let connectionTitle = $state('');
+    let connections = $state<Connection[]>([]);
+    let selectedConnection = $state<Connection | null>(null);
+    let sqlQuery = $state('');
+    let queryResult = $state<{ columns: string[], rows: string[][] } | null>(null);
+    let error = $state<string | null>(null);
+    let debugOutput = $state<string[]>([]);
+    let isLoading = $state(false);
 
-    onMount(() => {
+    // Load connections on mount
+    $effect(() => {
         console.log('Component mounted');
         loadConnections();
     });
@@ -126,10 +125,9 @@
         }
     }
 
-    effect(() => {
+    $effect(() => {
         console.log('selectedConnection changed:', selectedConnection);
     });
-
 </script>
 
 <div class="min-h-screen bg-white text-gray-900">
