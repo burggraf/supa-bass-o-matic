@@ -139,30 +139,26 @@
     <main class="container mx-auto py-8 px-4">
         <h1 class="text-3xl font-bold mb-6">Supa Bass-a-matic PostgreSQL Query Tool</h1>
         
-        <div class="space-y-6">
-            <div class="space-y-2">
+        <div class="space-y-4">
+            <div class="grid grid-cols-[150px_1fr] items-center gap-4">
                 <Label for="connection-title">Connection Title</Label>
-                <div class="flex gap-2">
-                    <div class="flex-1">
-                        <Input 
-                            id="connection-title"
-                            type="text" 
-                            bind:value={connectionTitle} 
-                            placeholder="My Database Connection"
-                        />
-                    </div>
-                </div>
+                <Input 
+                    id="connection-title"
+                    type="text" 
+                    bind:value={connectionTitle} 
+                    placeholder="My Database Connection"
+                />
+            </div>
 
+            <div class="grid grid-cols-[150px_1fr] items-center gap-4">
                 <Label for="connection-string">Connection String</Label>
                 <div class="flex gap-2">
-                    <div class="flex-1">
-                        <Input 
-                            id="connection-string"
-                            type="text" 
-                            bind:value={connectionString} 
-                            placeholder="postgres://user:pass@host:5432/database"
-                        />
-                    </div>
+                    <Input 
+                        id="connection-string"
+                        type="text" 
+                        bind:value={connectionString} 
+                        placeholder="postgres://user:pass@host:5432/database"
+                    />
                     <Button 
                         onclick={addCurrentConnection}
                         variant="success"
@@ -175,25 +171,23 @@
                 </div>
             </div>
 
-            <div class="space-y-2">
+            <div class="grid grid-cols-[150px_1fr] items-center gap-4">
                 <Label>Saved Connections</Label>
                 <div class="flex gap-2">
-                    <div class="flex-1">
-                        <Select.Select type="single" value={selectedConnection?.url} onValueChange={handleConnectionChange}>
-                            <Select.Trigger class="w-full">
-                                <span class="truncate">
-                                    {selectedConnection ? `${selectedConnection.title} (${selectedConnection.url})` : "Select a saved connection"}
-                                </span>
-                            </Select.Trigger>
-                            <Select.Content>
-                                {#each connections as conn}
-                                    <Select.Item value={conn.url}>
-                                        {conn.title} ({conn.url})
-                                    </Select.Item>
-                                {/each}
-                            </Select.Content>
-                        </Select.Select>
-                    </div>
+                    <Select.Select type="single" value={selectedConnection?.url} onValueChange={handleConnectionChange}>
+                        <Select.Trigger class="w-full">
+                            <span class="truncate">
+                                {selectedConnection ? `${selectedConnection.title} (${selectedConnection.url})` : "Select a saved connection"}
+                            </span>
+                        </Select.Trigger>
+                        <Select.Content>
+                            {#each connections as conn}
+                                <Select.Item value={conn.url}>
+                                    {conn.title} ({conn.url})
+                                </Select.Item>
+                            {/each}
+                        </Select.Content>
+                    </Select.Select>
                     {#if selectedConnection}
                         <Button 
                             onclick={() => deleteConnection(selectedConnection.url)}
@@ -206,7 +200,7 @@
                 </div>
             </div>
 
-            <div class="space-y-2">
+            <div class="grid grid-cols-[150px_1fr] items-center gap-4">
                 <Label for="sql-query">SQL Query</Label>
                 <Textarea 
                     id="sql-query"
