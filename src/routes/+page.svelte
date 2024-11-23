@@ -5,8 +5,9 @@
     import { Textarea } from "$lib/components/ui/textarea";
     import { Label } from "$lib/components/ui/label";
     import * as Table from "$lib/components/ui/table";
-    import * as Select from "$lib/components/ui/select/index.js";
-    import { Trash2, Check } from "lucide-svelte";
+    import * as Select from "$lib/components/ui/select";
+    import * as Dialog from "$lib/components/ui/dialog";
+    import { Trash2, Check, Plus } from "lucide-svelte";
 
     interface Connection {
         title: string;
@@ -23,6 +24,7 @@
     let debugOutput = $state<string[]>([]);
     let isLoading = $state(false);
     let isInitialized = $state(false);
+    let isDialogOpen = $state(false);
 
     // Load connections only once on mount
     $effect(() => {
@@ -99,7 +101,7 @@
         debugOutput = [...debugOutput, `${new Date().toISOString()}: ${message}`];
     }
 
-    async function handleClick() {
+    async function executeQuery() {
         addDebug('Button clicked');
         isLoading = true;
         error = null;
@@ -137,141 +139,158 @@
 
 <div class="min-h-screen bg-white text-gray-900">
     <main class="container mx-auto py-8 px-4">
-        <h1 class="text-3xl font-bold mb-6">Supa Bass-a-matic PostgreSQL Query Tool</h1>
-        
-        <div class="space-y-4">
-            <div class="flex items-center gap-4">
-                <div class="grid grid-cols-[80px_200px] items-center gap-4">
-                    <Label for="connection-title">Title</Label>
-                    <Input 
-                        id="connection-title"
-                        type="text" 
-                        bind:value={connectionTitle} 
-                        placeholder="My Database Connection"
-                    />
-                </div>
-
-                <div class="grid grid-cols-[120px_1fr] items-center gap-4 flex-1">
-                    <Label for="connection-string">Connection String</Label>
-                    <div class="flex gap-2">
-                        <Input 
-                            id="connection-string"
-                            type="text" 
-                            bind:value={connectionString} 
-                            placeholder="postgres://user:pass@host:5432/database"
-                            class="flex-1"
-                        />
-                        <Button 
-                            onclick={addCurrentConnection}
-                            variant="success"
-                            size="icon"
-                            class="bg-green-600 hover:bg-green-700 text-white"
-                            disabled={!connectionString || !connectionTitle}
-                        >
-                            <Check class="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-[150px_1fr] items-center gap-4">
-                <Label>Saved Connections</Label>
-                <div class="flex gap-2">
-                    <Select.Select type="single" value={selectedConnection?.url} onValueChange={handleConnectionChange}>
-                        <Select.Trigger class="w-full">
-                            <span class="truncate">
-                                {selectedConnection ? `${selectedConnection.title} (${selectedConnection.url})` : "Select a saved connection"}
-                            </span>
-                        </Select.Trigger>
-                        <Select.Content>
-                            {#each connections as conn}
-                                <Select.Item value={conn.url}>
-                                    {conn.title} ({conn.url})
-                                </Select.Item>
-                            {/each}
-                        </Select.Content>
-                    </Select.Select>
-                    {#if selectedConnection}
-                        <Button 
-                            onclick={() => deleteConnection(selectedConnection.url)}
-                            variant="destructive"
-                            size="icon"
-                        >
-                            <Trash2 class="h-4 w-4" />
-                        </Button>
-                    {/if}
-                </div>
-            </div>
-
-            <div class="grid grid-cols-[150px_1fr] items-center gap-4">
-                <Label for="sql-query">SQL Query</Label>
-                <Textarea 
-                    id="sql-query"
-                    bind:value={sqlQuery} 
-                    placeholder="SELECT * FROM your_table"
-                    class="min-h-[100px]"
-                />
-            </div>
-
-            <Button 
-                onclick={handleClick}
-                disabled={isLoading}
-                variant="default"
-                class="bg-blue-500 hover:bg-blue-600 text-white"
-            >
-                {#if isLoading}
-                    Executing...
-                {:else}
-                    Execute Query
-                {/if}
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">Supa Bass-a-matic PostgreSQL Query Tool</h1>
+            <Button onclick={() => isDialogOpen = true}>
+                <Plus class="w-4 h-4 mr-2" />
+                Add Connection
             </Button>
         </div>
-
-        {#if error}
-            <div class="p-4 mt-6 border border-red-500 rounded-md text-red-500">
-                Error: {error}
-            </div>
-        {/if}
-
-        {#if queryResult}
-            <div class="mt-6">
-                <h2 class="text-2xl font-bold mb-4">Query Results</h2>
-                <div class="relative overflow-x-auto">
-                    <div class="rounded-md border border-gray-200">
-                        <Table.Root>
-                            <Table.Header>
-                                <Table.Row>
-                                    {#each queryResult.columns as column}
-                                        <Table.Head class="bg-gray-50 p-4 text-left font-medium text-gray-900">
-                                            {column}
-                                        </Table.Head>
-                                    {/each}
-                                </Table.Row>
-                            </Table.Header>
-                            <Table.Body>
-                                {#each queryResult.rows as row}
-                                    <Table.Row>
-                                        {#each row as cell}
-                                            <Table.Cell class="p-4 border-t border-gray-200">
-                                                {cell}
-                                            </Table.Cell>
-                                        {/each}
-                                    </Table.Row>
+        
+        <div class="space-y-4">
+            {#if connections.length > 0}
+                <div class="grid grid-cols-[150px_1fr] items-center gap-4">
+                    <Label>Saved Connections</Label>
+                    <div class="flex gap-2">
+                        <Select.Select type="single" value={selectedConnection?.url} onValueChange={handleConnectionChange}>
+                            <Select.Trigger class="w-full">
+                                <span class="truncate">
+                                    {selectedConnection ? `${selectedConnection.title} (${selectedConnection.url})` : "Select a saved connection"}
+                                </span>
+                            </Select.Trigger>
+                            <Select.Content>
+                                {#each connections as conn}
+                                    <Select.Item value={conn.url}>
+                                        <div class="flex items-center justify-between w-full">
+                                            <span>{conn.title}</span>
+                                            <button
+                                                class="text-red-500 hover:text-red-700"
+                                                onclick={() => deleteConnection(conn.url)}
+                                            >
+                                                <Trash2 class="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </Select.Item>
                                 {/each}
-                            </Table.Body>
-                        </Table.Root>
+                            </Select.Content>
+                        </Select.Select>
                     </div>
                 </div>
-            </div>
-        {/if}
+            {:else}
+                <div class="text-center py-8 text-gray-500">
+                    No connections added yet. Click "Add Connection" to get started.
+                </div>
+            {/if}
 
-        <div class="mt-6 p-4 bg-gray-50 rounded-md">
-            <h3 class="text-lg font-semibold mb-2">Debug Output ({debugOutput.length} messages)</h3>
-            <div class="max-h-[200px] overflow-y-auto border border-gray-200 rounded-md p-2 bg-white">
-                {#each debugOutput as message}
-                    <div class="font-mono text-sm whitespace-pre-wrap mb-1">{message}</div>
-                {/each}
+            <div class="space-y-4">
+                <Label for="query">SQL Query</Label>
+                <Textarea
+                    id="query"
+                    bind:value={sqlQuery}
+                    placeholder="Enter your SQL query here..."
+                    class="font-mono"
+                    rows="6"
+                />
+                <Button disabled={!selectedConnection || isLoading} onclick={executeQuery}>
+                    {#if isLoading}
+                        <div class="animate-spin mr-2">⌛</div>
+                    {/if}
+                    Execute Query
+                </Button>
+            </div>
+
+            {#if error}
+                <div class="p-4 mt-6 border border-red-500 rounded-md text-red-500">
+                    Error: {error}
+                </div>
+            {/if}
+
+            {#if queryResult}
+                <div class="mt-6">
+                    <h2 class="text-2xl font-bold mb-4">Query Results</h2>
+                    <div class="relative overflow-x-auto">
+                        <div class="rounded-md border border-gray-200">
+                            <Table.Root>
+                                <Table.Header>
+                                    <Table.Row>
+                                        {#each queryResult.columns as column}
+                                            <Table.Head class="bg-gray-50 p-4 text-left font-medium text-gray-900">
+                                                {column}
+                                            </Table.Head>
+                                        {/each}
+                                    </Table.Row>
+                                </Table.Header>
+                                <Table.Body>
+                                    {#each queryResult.rows as row}
+                                        <Table.Row>
+                                            {#each row as cell}
+                                                <Table.Cell class="p-4 border-t border-gray-200">
+                                                    {cell}
+                                                </Table.Cell>
+                                            {/each}
+                                        </Table.Row>
+                                    {/each}
+                                </Table.Body>
+                            </Table.Root>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+
+            <div class="mt-6 p-4 bg-gray-50 rounded-md">
+                <h3 class="text-lg font-semibold mb-2">Debug Output ({debugOutput.length} messages)</h3>
+                <div class="max-h-[200px] overflow-y-auto border border-gray-200 rounded-md p-2 bg-white">
+                    {#each debugOutput as message}
+                        <div class="font-mono text-sm whitespace-pre-wrap mb-1">{message}</div>
+                    {/each}
+                </div>
             </div>
         </div>
+
+        <Dialog.Dialog bind:open={isDialogOpen}>
+            <Dialog.DialogContent>
+                <Dialog.DialogHeader>
+                    <Dialog.DialogTitle>Add Connection</Dialog.DialogTitle>
+                    <Dialog.DialogDescription>
+                        Enter the connection details below.
+                    </Dialog.DialogDescription>
+                </Dialog.DialogHeader>
+
+                <div class="grid gap-4 py-4">
+                    <div class="grid gap-2">
+                        <Label for="title">Connection Title</Label>
+                        <Input
+                            id="title"
+                            bind:value={connectionTitle}
+                            placeholder="My Database"
+                        />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="url">Connection String</Label>
+                        <Input
+                            id="url"
+                            bind:value={connectionString}
+                            placeholder="postgres://user:pass@localhost:5432/db"
+                        />
+                    </div>
+                </div>
+
+                <Dialog.DialogFooter>
+                    <Button variant="outline" onclick={() => isDialogOpen = false}>
+                        Cancel
+                    </Button>
+                    <Button 
+                        disabled={!connectionString || !connectionTitle}
+                        onclick={() => {
+                            addCurrentConnection();
+                            isDialogOpen = false;
+                        }}
+                    >
+                        <Check class="w-4 h-4 mr-2" />
+                        Save Connection
+                    </Button>
+                </Dialog.DialogFooter>
+            </Dialog.DialogContent>
+        </Dialog.Dialog>
     </main>
 </div>
