@@ -25,7 +25,19 @@ async fn format_row_value(row: &Row, i: usize, col_type: &Type) -> String {
                 None => "NULL".to_string(),
             }
         },
-        &Type::INT2 | &Type::INT4 | &Type::INT8 => {
+        &Type::INT2 => {
+            match row.get::<_, Option<i16>>(i) {
+                Some(n) => n.to_string(),
+                None => "NULL".to_string(),
+            }
+        },
+        &Type::INT4 => {
+            match row.get::<_, Option<i32>>(i) {
+                Some(n) => n.to_string(),
+                None => "NULL".to_string(),
+            }
+        },
+        &Type::INT8 => {
             match row.get::<_, Option<i64>>(i) {
                 Some(n) => n.to_string(),
                 None => "NULL".to_string(),
@@ -72,9 +84,13 @@ async fn format_row_value(row: &Row, i: usize, col_type: &Type) -> String {
 
 #[tauri::command]
 async fn execute_query(connection_string: String, query: String) -> Result<QueryResult, String> {
+    println!("Connecting to database...");
     let (client, connection) = tokio_postgres::connect(&connection_string, NoTls)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            println!("Connection error: {}", e);
+            e.to_string()
+        })?;
 
     tokio::spawn(async move {
         if let Err(e) = connection.await {
@@ -82,17 +98,27 @@ async fn execute_query(connection_string: String, query: String) -> Result<Query
         }
     });
 
-    let rows = client.query(&query, &[])
-        .await
-        .map_err(|e| e.to_string())?;
+    println!("Executing query: {}", query);
+    let rows = match client.query(&query, &[]).await {
+        Ok(r) => {
+            println!("Query successful, got {} rows", r.len());
+            r
+        },
+        Err(e) => {
+            println!("Query error: {}", e);
+            return Err(e.to_string());
+        }
+    };
 
     if rows.is_empty() {
+        println!("No rows returned");
         return Ok(QueryResult {
             columns: vec![],
             rows: vec![],
         });
     }
 
+    println!("Processing {} rows", rows.len());
     let columns: Vec<String> = rows[0].columns()
         .iter()
         .map(|col| col.name().to_string())
@@ -108,6 +134,7 @@ async fn execute_query(connection_string: String, query: String) -> Result<Query
         formatted_rows.push(formatted_row);
     }
 
+    println!("Query complete, returning {} rows", formatted_rows.len());
     Ok(QueryResult {
         columns,
         rows: formatted_rows,

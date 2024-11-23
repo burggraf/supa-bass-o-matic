@@ -4,7 +4,7 @@
 </script>
 
 <main class="container">
-  <h1>Welcome to Supa Bass-a-matic!</h1>
+  <h1>Welcome to supa-bass-o-matic!</h1>
   <div class="row">
     <p>
       This is a Tauri app built with Svelte 5 and TypeScript.

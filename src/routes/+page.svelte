@@ -29,6 +29,19 @@
     let isEditing = $state(false);
     let selectRef: { close: () => void } | null = $state(null);
 
+    // Format cell value based on column type and content
+    function formatCellValue(value: any, columnName: string): string {
+        if (value === null) return 'null';
+        
+        // Handle special column types
+        switch (columnName.toLowerCase()) {
+            case 'transactionid':
+                return value.toString();
+            default:
+                return value.toString();
+        }
+    }
+
     // Load connections only once on mount
     $effect(() => {
         if (!isInitialized) {
@@ -128,6 +141,7 @@
         addDebug('Button clicked');
         isLoading = true;
         error = null;
+        queryResult = null;
 
         try {
             if (!connectionString || !sqlQuery) {
@@ -144,12 +158,17 @@
 
             addDebug('Query executed successfully');
             queryResult = result as typeof queryResult;
-            addDebug(`Results received: ${JSON.stringify(result)}`);
+            if (queryResult.rows.length === 0) {
+                addDebug('Query returned no rows');
+            } else {
+                addDebug(`Results received: ${queryResult.rows.length} rows`);
+            }
         } catch (e) {
-            const errorMessage = e as string;
+            const errorMessage = e instanceof Error ? e.message : String(e);
             error = errorMessage;
             queryResult = null;
             addDebug(`Error: ${errorMessage}`);
+            console.error('Full error:', e);
         } finally {
             isLoading = false;
         }
@@ -163,7 +182,7 @@
 <div class="min-h-screen bg-white text-gray-900">
     <main class="container mx-auto py-8 px-4">
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold">Supa Bass-a-matic PostgreSQL Query Tool</h1>
+            <h1 class="text-3xl font-bold">supa-bass-o-matic PostgreSQL Query Tool</h1>
             <Button onclick={() => isDialogOpen = true}>
                 <Plus class="w-4 h-4 mr-2" />
                 Add Connection
@@ -231,59 +250,73 @@
                         <SqlPresets 
                             on:select={(e) => {
                                 sqlQuery = e.detail;
+                                error = null;  // Clear previous errors
                             }}
-                            hasConnection={!!selectedConnection}
                         />
                         <Textarea
                             bind:value={sqlQuery}
-                            placeholder="Enter your SQL query here..."
-                            class="min-h-[200px]"
+                            placeholder="Enter your SQL query here"
+                            class="font-mono"
+                            rows="6"
                         />
-                        <Button 
-                            onclick={executeQuery} 
-                            disabled={isLoading || !selectedConnection}
-                            class="w-full"
-                        >
-                            Execute Query
-                        </Button>
+                        <div class="flex justify-end gap-4">
+                            <Button 
+                                disabled={isLoading || !connectionString || !sqlQuery}
+                                onclick={executeQuery}
+                            >
+                                {#if isLoading}
+                                    <span class="inline-block animate-spin mr-2">⟳</span>
+                                    Executing...
+                                {:else}
+                                    Execute Query
+                                {/if}
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
                 {#if error}
-                    <div class="p-4 mt-6 border border-red-500 rounded-md text-red-500">
-                        Error: {error}
+                    <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
+                        <div class="font-bold mb-2">Error executing query:</div>
+                        <pre class="whitespace-pre-wrap text-sm">{error}</pre>
+                        <div class="mt-2 text-sm">
+                            <Button 
+                                variant="outline" 
+                                class="text-red-600 hover:text-red-800"
+                                onclick={() => {
+                                    error = null;
+                                    isLoading = false;
+                                }}
+                            >
+                                Clear Error
+                            </Button>
+                        </div>
                     </div>
                 {/if}
 
                 {#if queryResult}
-                    <div class="mt-6">
+                    <div class="mt-8">
                         <h2 class="text-2xl font-bold mb-4">Query Results</h2>
-                        <div class="relative overflow-x-auto">
-                            <div class="rounded-md border border-gray-200">
-                                <Table.Root>
-                                    <Table.Header>
-                                        <Table.Row>
-                                            {#each queryResult.columns as column}
-                                                <Table.Head class="bg-gray-50 p-4 text-left font-medium text-gray-900">
-                                                    {column}
-                                                </Table.Head>
-                                            {/each}
-                                        </Table.Row>
-                                    </Table.Header>
-                                    <Table.Body>
-                                        {#each queryResult.rows as row}
-                                            <Table.Row>
-                                                {#each row as cell}
-                                                    <Table.Cell class="p-4 border-t border-gray-200">
-                                                        {cell}
-                                                    </Table.Cell>
-                                                {/each}
-                                            </Table.Row>
+                        <Table.Table>
+                            <Table.TableHeader>
+                                <Table.TableRow>
+                                    {#each queryResult.columns as column}
+                                        <Table.TableHead>{column}</Table.TableHead>
+                                    {/each}
+                                </Table.TableRow>
+                            </Table.TableHeader>
+                            <Table.TableBody>
+                                {#each queryResult.rows as row}
+                                    <Table.TableRow>
+                                        {#each row as cell, columnIndex}
+                                            <Table.TableCell>
+                                                {formatCellValue(cell, queryResult.columns[columnIndex])}
+                                            </Table.TableCell>
                                         {/each}
-                                    </Table.Body>
-                                </Table.Root>
-                            </div>
-                        </div>
+                                    </Table.TableRow>
+                                {/each}
+                            </Table.TableBody>
+                        </Table.Table>
                     </div>
                 {/if}
 
