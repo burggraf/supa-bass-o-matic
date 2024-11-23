@@ -67,11 +67,24 @@
         if (stored) {
             connections = JSON.parse(stored);
             console.log('Loaded connections:', connections);
+            
+            // Load the last selected connection
+            const lastSelectedUrl = localStorage.getItem('selectedConnectionUrl');
+            if (lastSelectedUrl) {
+                const lastSelected = connections.find(conn => conn.url === lastSelectedUrl);
+                if (lastSelected) {
+                    selectedConnection = lastSelected;
+                    connectionString = lastSelected.url;
+                    connectionTitle = lastSelected.title;
+                    return;
+                }
+            }
+            
+            // Fallback to first connection if no saved selection or saved selection not found
             if (connections.length > 0) {
                 selectedConnection = connections[0];
                 connectionString = selectedConnection.url;
                 connectionTitle = selectedConnection.title;
-                console.log('Selected first connection:', selectedConnection);
             }
         } else {
             console.log('No stored connections found');
@@ -122,17 +135,26 @@
             connectionString = conn.url;
             connectionTitle = conn.title;
             indexAdvisorStatus = 'unknown';
+            // Save the selected connection URL
+            localStorage.setItem('selectedConnectionUrl', conn.url);
         }
     }
 
     function deleteConnection(url: string) {
         connections = connections.filter(conn => conn.url !== url);
-        if (selectedConnection?.url === url) {
-            selectedConnection = connections[0] || null;
-            connectionString = selectedConnection?.url || '';
-            connectionTitle = selectedConnection?.title || '';
-        }
         saveConnections();
+        
+        // If we deleted the selected connection, clear the selection
+        if (selectedConnection?.url === url) {
+            localStorage.removeItem('selectedConnectionUrl');
+            if (connections.length > 0) {
+                handleConnectionChange(connections[0].url);
+            } else {
+                selectedConnection = null;
+                connectionString = '';
+                connectionTitle = '';
+            }
+        }
         addDebug(`Deleted connection with URL: ${url}`);
     }
 
