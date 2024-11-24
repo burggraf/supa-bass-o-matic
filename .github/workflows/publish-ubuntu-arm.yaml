@@ -237,7 +237,17 @@ jobs:
           appName: "supa-bass-o-matic"
           appVersion: "0.1.0"
           artifactPaths: |
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/rpm/*.rpm
-            src-tauri/target/release/bundle/appimage/*.AppImage
-            src-tauri/target/release/bundle/appimage/*.AppImage.tar.gz
+            src-tauri/target/release/bundle/**/*.deb*
+            src-tauri/target/release/bundle/**/*.rpm*
+            src-tauri/target/release/bundle/**/*.AppImage*
+
+      - name: List build directory
+        if: success()
+        shell: bash
+        run: |
+          if [ -d "src-tauri/target/release/bundle/" ]; then
+            echo "Listing target directory contents:"
+            ls -R src-tauri/target/release/bundle/
+          else
+            echo "Bundle directory does not exist"
+          fi
