@@ -221,15 +221,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__
-          releaseName: "App v__VERSION__"
+          tagName: app-v0.1.0
+          releaseName: "App v0.1.0"
           releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
-          # args: ${{ matrix.args }} -- --release --features optimize
-          # args: "--target aarch64-unknown-linux-gnu"
-          args: ${{ matrix.args }}
+          args: --target aarch64-unknown-linux-gnu
           distPath: ./build
-          bundleIdentifier: ${{ env.IDENTIFIER }}
-          appName: ${{ env.NAME }}
-          appVersion: ${{ env.VERSION }}
+          bundleIdentifier: com.supabasecommunity.supabassomatic
+          appName: "supa-bass-o-matic"
+          appVersion: "0.1.0"
+          artifactPaths: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.AppImage.tar.gz
