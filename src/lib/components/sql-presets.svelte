@@ -66,9 +66,7 @@ const categories = {
                       <Accordion.Content class="-mt-4">
                         <div class="pb-4">
                           <p class="text-sm text-muted-foreground mb-2">{item.description}</p>
-                          <pre class="text-xs bg-muted p-2 rounded-md whitespace-pre-wrap break-words">
-                            <code class="block">{item.sql.trim()}</code>
-                          </pre>
+                          <pre class="text-xs bg-muted p-2 rounded-md whitespace-pre-wrap">{@html item.sql.trim().replace(/\\n/g, '\n')}</pre>
                         </div>
                       </Accordion.Content>
                     </Accordion.Item>
