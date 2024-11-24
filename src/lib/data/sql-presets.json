@@ -100,181 +100,181 @@
   "schema": [
     {
       "id": "17",
-      "title": "Schema: tables",
+      "title": "Tables",
       "description": "Shows CREATE TABLE statements for all tables in the database",
       "sql": "SELECT\n    'CREATE TABLE ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) || ' (\n' ||\n    array_to_string(\n        array_agg(\n            '    ' || quote_ident(a.attname) || ' ' ||\n            pg_catalog.format_type(a.atttypid, a.atttypmod) ||\n            CASE\n                WHEN a.attnotnull THEN ' NOT NULL'\n                ELSE ''\n            END ||\n            CASE\n                WHEN a.atthasdef THEN ' DEFAULT ' || pg_get_expr(d.adbin, d.adrelid)\n                ELSE ''\n            END\n        ),\n        ',\n'\n    ) ||\n    '\n);' AS create_table\nFROM\n    pg_class c\n    JOIN pg_namespace n ON c.relnamespace = n.oid\n    JOIN pg_attribute a ON c.oid = a.attrelid\n    LEFT JOIN pg_attrdef d ON (a.attrelid, a.attnum) = (d.adrelid, d.adnum)\nWHERE\n    c.relkind = 'r'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND a.attnum > 0\n    AND NOT a.attisdropped\nGROUP BY\n    n.nspname, c.relname\nORDER BY\n    n.nspname, c.relname;"
     },
     {
       "id": "18",
-      "title": "Schema: functions",
+      "title": "Functions",
       "description": "Shows CREATE FUNCTION statements for all functions in the database",
       "sql": "SELECT\n  pg_get_functiondef(p.oid) as create_function\nFROM\n  pg_proc p\n  JOIN pg_namespace n ON p.pronamespace = n.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND p.prokind = 'f'\nORDER BY\n  n.nspname, p.proname;"
     },
     {
       "id": "19",
-      "title": "Schema: procedures",
+      "title": "Procedures",
       "description": "Shows CREATE PROCEDURE statements for all procedures in the database",
       "sql": "SELECT\n  pg_get_functiondef(p.oid) as create_procedure\nFROM\n  pg_proc p\n  JOIN pg_namespace n ON p.pronamespace = n.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND p.prokind = 'p'\nORDER BY\n  n.nspname, p.proname;"
     },
     {
       "id": "20",
-      "title": "Schema: aggregates",
+      "title": "Aggregates",
       "description": "Shows CREATE AGGREGATE statements for all aggregates in the database",
       "sql": "SELECT\n  'CREATE AGGREGATE ' || quote_ident(n.nspname) || '.' || quote_ident(p.proname) ||\n  '(' ||\n  CASE\n    WHEN p.proargtypes[0] = 0 THEN '*'\n    ELSE pg_get_function_arguments(p.oid)\n  END || ') (\n' ||\n  '  SFUNC = ' || quote_ident(n2.nspname) || '.' || quote_ident(p2.proname) || ',\n' ||\n  '  STYPE = ' || format_type(p.prorettype, null) ||\n  CASE\n    WHEN p.proaggtransfn::text <> '-'::text THEN ',\n  FINALFUNC = ' || quote_ident(n3.nspname) || '.' || quote_ident(p3.proname)\n    ELSE ''\n  END || '\n);' AS create_aggregate\nFROM\n  pg_proc p\n  JOIN pg_namespace n ON p.pronamespace = n.oid\n  JOIN pg_proc p2 ON p.proaggtransfn = p2.oid\n  JOIN pg_namespace n2 ON p2.pronamespace = n2.oid\n  LEFT JOIN pg_proc p3 ON p.proaggfinalfn = p3.oid\n  LEFT JOIN pg_namespace n3 ON p3.pronamespace = n3.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND p.prokind = 'a'\nORDER BY\n  n.nspname, p.proname;"
     },
     {
       "id": "21",
-      "title": "Schema: casts",
+      "title": "Casts",
       "description": "Shows CREATE CAST statements for all casts in the database",
       "sql": "SELECT\n  'CREATE CAST (' || format_type(castsource, NULL) ||\n  ' AS ' || format_type(casttarget, NULL) || ')\n' ||\n  CASE castmethod\n    WHEN 'f' THEN '  WITH FUNCTION ' || quote_ident(n.nspname) || '.' || quote_ident(p.proname) || '(' || pg_get_function_arguments(p.oid) || ')\n'\n    WHEN 'i' THEN '  WITH INOUT\n'\n    WHEN 'b' THEN '  WITHOUT FUNCTION\n'\n  END ||\n  CASE castcontext\n    WHEN 'e' THEN '  AS EXPLICIT'\n    WHEN 'a' THEN '  AS ASSIGNMENT'\n    WHEN 'i' THEN '  AS IMPLICIT'\n  END || ';' AS create_cast\nFROM\n  pg_cast c\n  LEFT JOIN pg_proc p ON c.castfunc = p.oid\n  LEFT JOIN pg_namespace n ON p.pronamespace = n.oid\nWHERE\n  (n.nspname NOT IN ('pg_catalog', 'information_schema') OR n.nspname IS NULL)\nORDER BY\n  format_type(castsource, NULL), format_type(casttarget, NULL);"
     },
     {
       "id": "22",
-      "title": "Schema: constraints",
+      "title": "Constraints",
       "description": "Shows ALTER TABLE statements for all table constraints in the database",
       "sql": "SELECT\n  'ALTER TABLE ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(t.relname) ||\n  ' ADD CONSTRAINT ' || quote_ident(c.conname) || ' ' ||\n  pg_get_constraintdef(c.oid) || ';' AS constraint_def\nFROM\n  pg_constraint c\n  JOIN pg_class t ON c.conrelid = t.oid\n  JOIN pg_namespace n ON n.oid = t.relnamespace\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast');"
     },
     {
       "id": "23",
-      "title": "Schema: triggers",
+      "title": "Triggers",
       "description": "Shows CREATE TRIGGER statements for all triggers in the database",
       "sql": "SELECT\n    'CREATE TRIGGER ' || quote_ident(t.tgname) ||\n    ' ' || pg_get_triggerdef(t.oid) || ';' AS create_trigger\nFROM\n    pg_trigger t\n    JOIN pg_class c ON t.tgrelid = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    NOT t.tgisinternal\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, c.relname, t.tgname;"
     },
     {
       "id": "24",
-      "title": "Schema: rules",
+      "title": "Rules",
       "description": "Shows CREATE RULE statements for all rules in the database",
       "sql": "SELECT\n    pg_get_ruledef(r.oid, true) || ';' AS create_rule\nFROM\n    pg_rewrite r\n    JOIN pg_class c ON r.ev_class = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND r.rulename <> '_RETURN'\nORDER BY\n    n.nspname, c.relname, r.rulename;"
     },
     {
       "id": "25",
-      "title": "Schema: domains",
+      "title": "Domains",
       "description": "Shows CREATE DOMAIN statements for all domains in the database",
       "sql": "SELECT\n    'CREATE DOMAIN ' || quote_ident(n.nspname) || '.' || quote_ident(t.typname) ||\n    ' AS ' || pg_catalog.format_type(t.typbasetype, t.typtypmod) ||\n    (CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END) ||\n    (CASE WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END) ||\n    (CASE WHEN c.oid IS NOT NULL THEN ' ' ||\n        pg_catalog.pg_get_constraintdef(c.oid, true) ELSE '' END) || ';' AS create_domain\nFROM\n    pg_type t\n    JOIN pg_namespace n ON n.oid = t.typnamespace\n    LEFT JOIN pg_constraint c ON c.contypid = t.oid\nWHERE\n    t.typtype = 'd' AND\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, t.typname;"
     },
     {
       "id": "26",
-      "title": "Schema: collations",
+      "title": "Collations",
       "description": "Shows CREATE COLLATION statements for all collations in the database",
       "sql": "SELECT\n    'CREATE COLLATION ' || quote_ident(n.nspname) || '.' || quote_ident(c.collname) ||\n    ' (LC_COLLATE = ' || quote_literal(c.collcollate) ||\n    ', LC_CTYPE = ' || quote_literal(c.collctype) ||\n    CASE\n      WHEN c.collprovider = 'd' THEN ', PROVIDER = icu'\n      ELSE ', PROVIDER = libc'\n    END ||\n    CASE\n      WHEN c.collversion IS NOT NULL THEN ', VERSION = ' || quote_literal(c.collversion)\n      ELSE ''\n    END ||\n    ');' AS create_collation\nFROM\n    pg_collation c\n    JOIN pg_namespace n ON n.oid = c.collnamespace\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, c.collname;"
     },
     {
       "id": "27",
-      "title": "Schema: operators",
+      "title": "Operators",
       "description": "Shows CREATE OPERATOR statements for all operators in the database",
       "sql": "SELECT\n    'CREATE OPERATOR ' || quote_ident(n.nspname) || '.' || quote_ident(o.oprname) ||\n    ' (' ||\n    'PROCEDURE = ' || (SELECT quote_ident(n2.nspname) || '.' || quote_ident(p.proname)\n                       FROM pg_proc p\n                       JOIN pg_namespace n2 ON p.pronamespace = n2.oid\n                       WHERE p.oid = o.oprcode) ||\n    CASE\n      WHEN o.oprleft <> 0 THEN ', LEFTARG = ' || pg_catalog.format_type(o.oprleft, NULL)\n      ELSE ''\n    END ||\n    CASE\n      WHEN o.oprright <> 0 THEN ', RIGHTARG = ' || pg_catalog.format_type(o.oprright, NULL)\n      ELSE ''\n    END ||\n    ');' AS create_operator\nFROM\n    pg_operator o\n    JOIN pg_namespace n ON o.oprnamespace = n.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, o.oprname;"
     },
     {
       "id": "28",
-      "title": "Schema: text search configurations",
+      "title": "Text Search Configurations",
       "description": "Shows CREATE TEXT SEARCH CONFIGURATION statements for all text search configurations in the database",
       "sql": "SELECT\n    'CREATE TEXT SEARCH CONFIGURATION ' || quote_ident(n.nspname) || '.' || quote_ident(c.cfgname) ||\n    ' (PARSER = ' || quote_ident(np.nspname) || '.' || quote_ident(p.prsname) || ');' AS create_ts_config\nFROM\n    pg_ts_config c\n    JOIN pg_namespace n ON c.cfgnamespace = n.oid\n    JOIN pg_ts_parser p ON c.cfgparser = p.oid\n    JOIN pg_namespace np ON p.prsnamespace = np.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, c.cfgname;"
     },
     {
       "id": "29",
-      "title": "Schema: search configuration mappings",
+      "title": "Search Configuration Mappings",
       "description": "Shows ALTER TEXT SEARCH CONFIGURATION statements for all text search configuration mappings in the database",
       "sql": "SELECT\n    'ALTER TEXT SEARCH CONFIGURATION ' || quote_ident(n.nspname) || '.' || quote_ident(c.cfgname) ||\n    ' ADD MAPPING FOR ' || quote_ident(m.mapcfg::text) ||\n    ' WITH ' || quote_ident(nd.nspname) || '.' || quote_ident(d.dictname) || ';'\nFROM\n    (\n        SELECT\n            c.*,\n            m.mapcfg,\n            m.mapdict,\n            row_number() OVER (PARTITION BY c.oid ORDER BY m.mapcfg) as rn\n        FROM\n            pg_ts_config c\n            LEFT JOIN pg_ts_config_map m ON c.oid = m.mapcfg\n    ) c\n    JOIN pg_namespace n ON c.cfgnamespace = n.oid\n    JOIN pg_ts_parser p ON c.cfgparser = p.oid\n    JOIN pg_namespace np ON p.prsnamespace = np.oid\n    LEFT JOIN pg_ts_dict d ON c.mapdict = d.oid\n    LEFT JOIN pg_namespace nd ON d.dictnamespace = nd.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, c.cfgname;"
     },
     {
       "id": "30",
-      "title": "Schema: text search dictionaries",
+      "title": "Text Search Dictionaries",
       "description": "Shows CREATE TEXT SEARCH DICTIONARY statements for all text search dictionaries in the database",
       "sql": "SELECT\n    'CREATE TEXT SEARCH DICTIONARY ' || quote_ident(n.nspname) || '.' || quote_ident(d.dictname) ||\n    ' (' ||\n    'TEMPLATE = ' || quote_ident(nt.nspname) || '.' || quote_ident(t.tmplname) ||\n    CASE\n      WHEN d.dictinitoption IS NOT NULL THEN ', ' || d.dictinitoption\n      ELSE ''\n    END ||\n    ');' AS create_ts_dict\nFROM\n    pg_ts_dict d\n    JOIN pg_ts_template t ON d.dicttemplate = t.oid\n    JOIN pg_namespace n ON d.dictnamespace = n.oid\n    JOIN pg_namespace nt ON t.tmplnamespace = nt.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, d.dictname;"
     },
     {
       "id": "31",
-      "title": "Schema: schemas",
+      "title": "Schemas",
       "description": "Shows CREATE SCHEMA statements for all schemas in the database",
       "sql": "SELECT\n  'CREATE SCHEMA ' || quote_ident(nspname) || ';\n' ||\n  CASE\n    WHEN nspowner <> (SELECT oid FROM pg_roles WHERE rolname = CURRENT_USER)\n    THEN 'ALTER SCHEMA ' || quote_ident(nspname) || ' OWNER TO ' || quote_ident(r.rolname) || ';'\n    ELSE ''\n  END AS create_schema\nFROM\n  pg_namespace n\n  JOIN pg_roles r ON n.nspowner = r.oid\nWHERE\n  nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')\n  AND nspname NOT LIKE 'pg_%'\nORDER BY\n  nspname;"
     },
     {
       "id": "32",
-      "title": "Schema: composite types",
+      "title": "Composite Types",
       "description": "Shows CREATE TYPE statements for composite types",
       "sql": "SELECT\n    'CREATE TYPE ' || quote_ident(n.nspname) || '.' || quote_ident(t.typname) ||\n    ' AS (' ||\n    string_agg(\n        quote_ident(a.attname) || ' ' || format_type(a.atttypid, a.atttypmod),\n        ', '\n        ORDER BY a.attnum\n    ) || ');' AS create_type\nFROM\n    pg_type t\n    JOIN pg_namespace n ON n.oid = t.typnamespace\n    JOIN pg_class c ON c.oid = t.typrelid\n    JOIN pg_attribute a ON a.attrelid = c.oid\nWHERE\n    t.typtype = 'c'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND a.attnum > 0 AND NOT a.attisdropped\nGROUP BY\n    n.nspname, t.typname;"
     },
     {
       "id": "33",
-      "title": "Schema: enumerated types",
+      "title": "Enumerated Types",
       "description": "Shows CREATE TYPE statements for enumerated types",
       "sql": "SELECT\n    'CREATE TYPE ' || quote_ident(n.nspname) || '.' || quote_ident(t.typname) ||\n    ' AS ENUM (' ||\n    string_agg(quote_literal(e.enumlabel), ', ' ORDER BY e.enumsortorder) ||\n    ');' AS create_enum\nFROM\n    pg_type t\n    JOIN pg_namespace n ON n.oid = t.typnamespace\n    JOIN pg_enum e ON t.oid = e.enumtypid\nWHERE\n    t.typtype = 'e'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\nGROUP BY\n    n.nspname, t.typname;"
     },
     {
       "id": "34",
-      "title": "Schema: materialized views",
+      "title": "Materialized Views",
       "description": "Shows CREATE MATERIALIZED VIEW statements",
       "sql": "SELECT\n    'CREATE MATERIALIZED VIEW ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    ' AS ' || pg_get_viewdef(c.oid, true) ||\n    ';' AS create_mat_view\nFROM\n    pg_class c\n    JOIN pg_namespace n ON n.oid = c.relnamespace\nWHERE\n    c.relkind = 'm'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema');"
     },
     {
       "id": "35",
-      "title": "Schema: text search parsers",
+      "title": "Text Search Parsers",
       "description": "Shows CREATE TEXT SEARCH PARSER statements",
       "sql": "SELECT\n  'CREATE TEXT SEARCH PARSER ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(p.prsname) || ' (' ||\n  'START = ' || quote_ident(ns.nspname) || '.' || p.prsstart::text || ', ' ||\n  'GETTOKEN = ' || quote_ident(ng.nspname) || '.' || p.prstoken::text || ', ' ||\n  'END = ' || quote_ident(ne.nspname) || '.' || p.prsend::text || ', ' ||\n  'LEXTYPES = ' || quote_ident(nl.nspname) || '.' || p.prslextype::text ||\n  CASE\n    WHEN p.prsheadline IS NOT NULL THEN ', HEADLINE = ' || quote_ident(nh.nspname) || '.' || p.prsheadline::text\n    ELSE ''\n  END || ');' AS create_ts_parser\nFROM\n  pg_ts_parser p\n  JOIN pg_namespace n ON p.prsnamespace = n.oid\n  JOIN pg_proc ps ON p.prsstart = ps.oid\n  JOIN pg_namespace ns ON ps.pronamespace = ns.oid\n  JOIN pg_proc pg ON p.prstoken = pg.oid\n  JOIN pg_namespace ng ON pg.pronamespace = ng.oid\n  JOIN pg_proc pe ON p.prsend = pe.oid\n  JOIN pg_namespace ne ON pe.pronamespace = ne.oid\n  JOIN pg_proc pl ON p.prslextype = pl.oid\n  JOIN pg_namespace nl ON pl.pronamespace = nl.oid\n  LEFT JOIN pg_proc ph ON p.prsheadline = ph.oid\n  LEFT JOIN pg_namespace nh ON ph.pronamespace = nh.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema');"
     },
     {
       "id": "36",
-      "title": "Schema: text search templates",
+      "title": "Text Search Templates",
       "description": "Shows CREATE TEXT SEARCH TEMPLATE statements",
       "sql": "SELECT\n  'CREATE TEXT SEARCH TEMPLATE ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(p.tmplname) || ' (' ||\n  CASE\n    WHEN p.tmplinit::text IS NOT NULL THEN 'INIT = ' || quote_ident(ni.nspname) || '.' || p.tmplinit::text || ', '\n    ELSE ''\n  END ||\n  'LEXIZE = ' || quote_ident(nl.nspname) || '.' || p.tmpllexize::text || ');' AS create_ts_template\nFROM\n  pg_ts_template p\n  JOIN pg_namespace n ON p.tmplnamespace = n.oid\n  JOIN pg_proc pl ON p.tmpllexize = pl.oid\n  JOIN pg_namespace nl ON pl.pronamespace = nl.oid\n  LEFT JOIN pg_proc pi ON p.tmplinit = pi.oid\n  LEFT JOIN pg_namespace ni ON pi.pronamespace = ni.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema');"
     },
     {
       "id": "37",
-      "title": "Schema: text search dictionaries",
+      "title": "Text Search Dictionaries",
       "description": "Shows CREATE TEXT SEARCH DICTIONARY statements",
       "sql": "SELECT\n  'CREATE TEXT SEARCH DICTIONARY ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(d.dictname) || ' (' ||\n  'TEMPLATE = ' || quote_ident(nt.nspname) || '.' || quote_ident(t.tmplname) ||\n  CASE\n    WHEN d.dictinitoption IS NOT NULL THEN ', ' || d.dictinitoption\n    ELSE ''\n  END || ');' AS create_ts_dictionary\nFROM\n  pg_ts_dict d\n  JOIN pg_ts_template t ON d.dicttemplate = t.oid\n  JOIN pg_namespace n ON d.dictnamespace = n.oid\n  JOIN pg_namespace nt ON t.tmplnamespace = nt.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema');"
     },
     {
       "id": "38",
-      "title": "Schema: text search configurations",
+      "title": "Text Search Configurations",
       "description": "Shows CREATE TEXT SEARCH CONFIGURATION statements",
       "sql": "SELECT\n  string_agg(\n    CASE\n      WHEN rn = 1 THEN\n        'CREATE TEXT SEARCH CONFIGURATION ' ||\n        quote_ident(n.nspname) || '.' || quote_ident(c.cfgname) || ' (' ||\n        'PARSER = ' || quote_ident(np.nspname) || '.' || quote_ident(p.prsname) ||\n        ');'\n      ELSE\n        'ALTER TEXT SEARCH CONFIGURATION ' ||\n        quote_ident(n.nspname) || '.' || quote_ident(c.cfgname) ||\n        ' ADD MAPPING FOR ' || quote_ident(m.mapcfg::text) ||\n        ' WITH ' || quote_ident(nd.nspname) || '.' || quote_ident(d.dictname) || ';'\n    END,\n    E'\\n'\n  ) AS create_ts_config\nFROM\n  (\n    SELECT\n      c.*,\n      m.mapcfg,\n      m.mapdict,\n      row_number() OVER (PARTITION BY c.oid ORDER BY m.mapcfg) as rn\n    FROM\n      pg_ts_config c\n      LEFT JOIN pg_ts_config_map m ON c.oid = m.mapcfg\n  ) c\n  JOIN pg_namespace n ON c.cfgnamespace = n.oid\n  JOIN pg_ts_parser p ON c.cfgparser = p.oid\n  JOIN pg_namespace np ON p.prsnamespace = np.oid\n  LEFT JOIN pg_ts_dict d ON c.mapdict = d.oid\n  LEFT JOIN pg_namespace nd ON d.dictnamespace = nd.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema')\nGROUP BY\n  n.nspname,\n  c.cfgname,\n  np.nspname,\n  p.prsname"
     },
     {
       "id": "39",
-      "title": "Schema: foreign data wrappers",
+      "title": "Foreign Data Wrappers",
       "description": "Shows CREATE FOREIGN DATA WRAPPER statements",
       "sql": "SELECT\n    'CREATE FOREIGN DATA WRAPPER ' || quote_ident(fdw.fdwname) ||\n    CASE\n      WHEN fdw.fdwhandler <> 0 THEN ' HANDLER ' || pg_get_function_identity_arguments(fdw.fdwhandler)\n      ELSE ''\n    END ||\n    CASE\n      WHEN fdw.fdwvalidator <> 0 THEN ' VALIDATOR ' || pg_get_function_identity_arguments(fdw.fdwvalidator)\n      ELSE ''\n    END || ';' AS create_fdw\nFROM\n    pg_foreign_data_wrapper fdw\nWHERE\n    fdw.fdwname NOT IN ('postgres_fdw', 'file_fdw');"
     },
     {
       "id": "40",
-      "title": "Schema: foreign servers",
+      "title": "Foreign Servers",
       "description": "Shows CREATE SERVER statements",
       "sql": "SELECT\n    'CREATE SERVER ' || quote_ident(srv.srvname) ||\n    ' FOREIGN DATA WRAPPER ' || quote_ident(fdw.fdwname) ||\n    CASE\n      WHEN srv.srvtype IS NOT NULL THEN ' TYPE ' || quote_literal(srv.srvtype)\n      ELSE ''\n    END ||\n    CASE\n      WHEN srv.srvversion IS NOT NULL THEN ' VERSION ' || quote_literal(srv.srvversion)\n      ELSE ''\n    END ||\n    (CASE\n      WHEN srv.srvoptions IS NOT NULL THEN ' OPTIONS (' || array_to_string(srv.srvoptions, ', ') || ')'\n      ELSE ''\n    END) || ';' AS create_server\nFROM\n    pg_foreign_server srv\n    JOIN pg_foreign_data_wrapper fdw ON srv.srvfdw = fdw.oid;"
     },
     {
       "id": "41",
-      "title": "Schema: user mappings",
+      "title": "User Mappings",
       "description": "Shows CREATE USER MAPPING statements",
       "sql": "SELECT\n    'CREATE USER MAPPING FOR ' || quote_ident(um.usename) ||\n    ' SERVER ' || quote_ident(srv.srvname) ||\n    (CASE\n      WHEN um.umoptions IS NOT NULL THEN ' OPTIONS (' || array_to_string(um.umoptions, ', ') || ')'\n      ELSE ''\n    END) || ';' AS create_user_mapping\nFROM\n    pg_user_mappings um\n    JOIN pg_foreign_server srv ON um.srvid = srv.oid;"
     },
     {
       "id": "42",
-      "title": "Schema: row level security policies",
+      "title": "Row Level Security Policies",
       "description": "Shows CREATE POLICY statements",
       "sql": "SELECT\n    'CREATE POLICY ' || quote_ident(pol.polname) ||\n    ' ON ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    CASE\n      WHEN pol.polcmd::text != '*' THEN ' FOR ' || pol.polcmd::text\n      ELSE ''\n    END ||\n    CASE\n      WHEN pol.polroles <> '{0}' THEN\n        ' TO ' || array_to_string(array(\n          SELECT quote_ident(rolname)\n          FROM pg_roles\n          WHERE oid = ANY(pol.polroles)\n        ), ', ')\n      ELSE ''\n    END ||\n    CASE\n      WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_get_expr(pol.polqual, pol.polrelid) || ')'\n      ELSE ''\n    END ||\n    CASE\n      WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_get_expr(pol.polwithcheck, pol.polrelid) || ')'\n      ELSE ''\n    END || ';' AS create_policy\nFROM\n    pg_policy pol\n    JOIN pg_class c ON pol.polrelid = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema');"
     },
     {
       "id": "43",
-      "title": "Schema: publications",
+      "title": "Publications",
       "description": "Shows CREATE PUBLICATION statements",
       "sql": "SELECT\n    'CREATE PUBLICATION ' || quote_ident(pub.pubname) ||\n    CASE\n      WHEN pub.puballtables THEN ' FOR ALL TABLES'\n      ELSE ' FOR TABLE ' || string_agg(quote_ident(n.nspname) || '.' || quote_ident(c.relname), ', ')\n    END || ';' AS create_publication\nFROM\n    pg_publication pub\n    LEFT JOIN pg_publication_rel pr ON pub.oid = pr.prpubid\n    LEFT JOIN pg_class c ON pr.prrelid = c.oid\n    LEFT JOIN pg_namespace n ON c.relnamespace = n.oid\nGROUP BY\n    pub.pubname,\n    pub.puballtables;"
     },
     {
       "id": "44",
-      "title": "Schema: extensions",
+      "title": "Extensions",
       "description": "Shows CREATE EXTENSION statements",
       "sql": "SELECT\n    'CREATE EXTENSION IF NOT EXISTS ' || quote_ident(ext.extname) ||\n    ' WITH SCHEMA ' || quote_ident(n.nspname) ||\n    CASE\n      WHEN ext.extversion IS NOT NULL THEN ' VERSION ' || quote_literal(ext.extversion)\n      ELSE ''\n    END || ';' AS create_extension\nFROM\n    pg_extension ext\n    JOIN pg_namespace n ON ext.extnamespace = n.oid\nWHERE\n    ext.extname NOT IN ('plpgsql');"
     },
     {
       "id": "45",
-      "title": "Schema: statistics",
+      "title": "Statistics",
       "description": "Shows CREATE STATISTICS statements",
       "sql": "SELECT\n    'CREATE STATISTICS ' || quote_ident(s.stxname) ||\n    ' (' || array_to_string(ARRAY(\n        SELECT\n            CASE\n                WHEN stxkind[i] = 'd' THEN 'NDISTINCT'\n                WHEN stxkind[i] = 'f' THEN 'DEPENDENCIES'\n                WHEN stxkind[i] = 'm' THEN 'MCV'\n            END\n        FROM generate_subscripts(s.stxkind, 1) as i\n    ), ', ') || ')' ||\n    ' ON ' || array_to_string(ARRAY_AGG(quote_ident(a.attname)), ', ') ||\n    ' FROM ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) || ';' AS create_statistics\nFROM\n    pg_statistic_ext s\n    JOIN pg_class c ON s.stxrelid = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\n    JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(s.stxkeys)\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nGROUP BY\n    s.stxname,\n    s.stxkind,\n    n.nspname,\n    c.relname;"
     },
     {
       "id": "46",
-      "title": "Schema: comments",
+      "title": "Comments",
       "description": "Shows COMMENT ON statements for tables, views, and materialized views",
       "sql": "SELECT\n    'COMMENT ON TABLE ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    ' IS ' || quote_literal(obj_description(c.oid, 'pg_class')) || ';' AS comment_table\nFROM\n    pg_class c\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    c.relkind IN ('r', 'v', 'm')\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND obj_description(c.oid, 'pg_class') IS NOT NULL;"
     }

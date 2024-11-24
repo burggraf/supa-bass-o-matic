@@ -44,7 +44,7 @@ const categories = {
                 <span class="font-semibold">{category.title}</span>
               </Accordion.Trigger>
               <Accordion.Content>
-                <Accordion.Root type="single" collapsible class="px-2">
+                <Accordion.Root type="single" class="px-2">
                   {#each category.items as item}
                     <Accordion.Item value={item.id}>
                       <Accordion.Trigger>
