@@ -29,6 +29,9 @@ TypeScript Usage
 
 Read the Svelte documentation for more information on Svelte here: https://svelte.dev/docs/svelte/overview
 
+Very important: Use Svelte 5 syntax and do not use older Svelte 4 patterns:
+https://svelte.dev/docs/svelte/v5-migration-guide
+
 Svelte Runes
 - `$state`: Declare reactive state
   ```typescript
@@ -144,7 +147,7 @@ State Management
   import { counter } from './counter.svelte.ts';
   </script>
 
-  <button on:click={() => counter.increment()}>
+  <button onclick={() => counter.increment()}>
     Count: {counter.count}
   </button>
   ```
