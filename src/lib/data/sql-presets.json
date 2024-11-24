@@ -95,7 +95,9 @@
       "title": "Long Running Queries",
       "description": "Shows currently running queries that have been running for a long time",
       "sql": "SELECT pid, age(clock_timestamp(), query_start) AS duration, query FROM pg_stat_activity WHERE query != '<IDLE>' AND query NOT ILIKE '%pg_stat_activity%' AND state != 'idle' AND state = 'active' ORDER BY duration DESC"
-    },
+    }
+  ],
+  "schema": [
     {
       "id": "17",
       "title": "Schema: tables",
