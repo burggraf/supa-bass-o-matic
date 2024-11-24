@@ -52,12 +52,6 @@ jobs:
       - name: Build web assets
         run: npm run build
 
-      - name: List build directory
-        shell: bash
-        run: |
-          echo "Listing target directory contents:"
-          ls -R src-tauri/target/release/bundle/
-
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -76,3 +70,14 @@ jobs:
             src-tauri/target/release/bundle/**/*.deb*
             src-tauri/target/release/bundle/**/*.rpm*
             src-tauri/target/release/bundle/**/*.AppImage*
+
+      - name: List build directory
+        if: success()
+        shell: bash
+        run: |
+          if [ -d "src-tauri/target/release/bundle/" ]; then
+            echo "Listing target directory contents:"
+            ls -R src-tauri/target/release/bundle/
+          else
+            echo "Bundle directory does not exist"
+          fi
