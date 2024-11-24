@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "supa-bass-o-matic",
-    "version": "0.0.1"
+    "version": "0.1.0"
   },
   "tauri": {
     "allowlist": {
@@ -19,8 +19,8 @@
     },
     "bundle": {
       "active": true,
-      "targets": ["app"],
-      "identifier": "com.supa-bass-o-matic.dev",
+      "targets": ["app", "deb", "rpm", "appimage", "msi", "nsis"],
+      "identifier": "com.supabasecommunity.supabassomatic",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",

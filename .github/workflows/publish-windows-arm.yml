@@ -39,6 +39,12 @@ jobs:
       - name: Install ImageMagick
         run: choco install imagemagick.app -y
 
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build web assets
+        run: npm run build
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,3 +59,18 @@ jobs:
           bundleIdentifier: com.supabasecommunity.supabassomatic
           appName: "supa-bass-o-matic"
           appVersion: "0.1.0"
+          artifactPaths: |
+            src-tauri/target/release/bundle/**/*.msi*
+            src-tauri/target/release/bundle/**/*.exe*
+            src-tauri/target/release/bundle/**/*.zip*
+
+      - name: List build directory
+        if: success()
+        shell: bash
+        run: |
+          if [ -d "src-tauri/target/release/bundle/" ]; then
+            echo "Listing target directory contents:"
+            ls -R src-tauri/target/release/bundle/
+          else
+            echo "Bundle directory does not exist"
+          fi
