@@ -7,6 +7,7 @@
     import * as Table from "$lib/components/ui/table";
     import * as Select from "$lib/components/ui/select";
     import * as Dialog from "$lib/components/ui/dialog";
+    import * as Accordion from "$lib/components/ui/accordion";
     import { Trash2, Check, Plus, Pencil } from "lucide-svelte";
     import SqlPresets from "$lib/components/sql-presets.svelte";
 
@@ -34,6 +35,7 @@
     let isDebugVisible = $state(false);
     let selectRef: { close: () => void } | null = $state(null);
     let indexAdvisorStatus = $state('unknown');
+    let openItems = $state<string[]>([]);
 
     // Format cell value based on column type and content
     function formatCellValue(value: any, columnName: string): string {
@@ -62,6 +64,12 @@
         if (isDialogOpen && !isEditing) {
             connectionString = '';
             connectionTitle = '';
+        }
+    });
+
+    $effect(() => {
+        if (queryResults.length > 0) {
+            openItems = [queryResults[0].title];
         }
     });
 
@@ -385,40 +393,46 @@
                 {/if}
 
                 {#if queryResults.length > 0}
-                    <div class="mt-4 space-y-8">
-                        {#each queryResults as result}
-                            <div class="border rounded-lg overflow-hidden">
-                                <div class="bg-muted p-4">
-                                    <h3 class="font-semibold text-lg mb-1">{result.title}</h3>
-                                    {#if result.description}
-                                        <p class="text-sm text-muted-foreground">{result.description}</p>
-                                    {/if}
-                                </div>
-                                
-                                <div class="overflow-x-auto">
-                                    <Table.Root>
-                                        <Table.Header>
-                                            <Table.Row>
-                                                {#each result.result.columns as column}
-                                                    <Table.Head>{column}</Table.Head>
-                                                {/each}
-                                            </Table.Row>
-                                        </Table.Header>
-                                        <Table.Body>
-                                            {#each result.result.rows as row}
-                                                <Table.Row>
-                                                    {#each row as cell, i}
-                                                        <Table.Cell>
-                                                            {formatCellValue(cell, result.result.columns[i])}
-                                                        </Table.Cell>
+                    <div class="mt-4">
+                        <h2 class="text-2xl font-semibold mb-4">Results</h2>
+                        <Accordion.Root type="multiple" value={openItems} class="space-y-2">
+                            {#each queryResults as result}
+                                <Accordion.Item value={result.title} class="border rounded-lg overflow-hidden">
+                                    <Accordion.Trigger class="w-full bg-muted hover:bg-muted/80 p-4">
+                                        <div class="text-left">
+                                            <h3 class="font-semibold text-lg">{result.title}</h3>
+                                            {#if result.description}
+                                                <p class="text-sm text-muted-foreground">{result.description}</p>
+                                            {/if}
+                                        </div>
+                                    </Accordion.Trigger>
+                                    <Accordion.Content>
+                                        <div class="overflow-x-auto p-4">
+                                            <Table.Root>
+                                                <Table.Header>
+                                                    <Table.Row>
+                                                        {#each result.result.columns as column}
+                                                            <Table.Head>{column}</Table.Head>
+                                                        {/each}
+                                                    </Table.Row>
+                                                </Table.Header>
+                                                <Table.Body>
+                                                    {#each result.result.rows as row}
+                                                        <Table.Row>
+                                                            {#each row as cell, i}
+                                                                <Table.Cell>
+                                                                    {formatCellValue(cell, result.result.columns[i])}
+                                                                </Table.Cell>
+                                                            {/each}
+                                                        </Table.Row>
                                                     {/each}
-                                                </Table.Row>
-                                            {/each}
-                                        </Table.Body>
-                                    </Table.Root>
-                                </div>
-                            </div>
-                        {/each}
+                                                </Table.Body>
+                                            </Table.Root>
+                                        </div>
+                                    </Accordion.Content>
+                                </Accordion.Item>
+                            {/each}
+                        </Accordion.Root>
                     </div>
                 {/if}
 
