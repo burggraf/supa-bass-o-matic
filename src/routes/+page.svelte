@@ -20,7 +20,11 @@
     let connections = $state<Connection[]>([]);
     let selectedConnection = $state<Connection | null>(null);
     let sqlQuery = $state('');
-    let queryResult = $state<{ columns: string[], rows: string[][] } | null>(null);
+    let queryResults = $state<Array<{
+        title: string;
+        description: string;
+        result: { columns: string[], rows: string[][] };
+    }>>([]);
     let error = $state<string | null>(null);
     let debugOutput = $state<string[]>([]);
     let isLoading = $state(false);
@@ -166,7 +170,7 @@
         addDebug('Button clicked');
         isLoading = true;
         error = null;
-        queryResult = null;
+        queryResults = [];
 
         try {
             if (!connectionString || !sqlQuery) {
@@ -182,16 +186,11 @@
             });
 
             addDebug('Query executed successfully');
-            queryResult = result as typeof queryResult;
-            if (queryResult.rows.length === 0) {
-                addDebug('Query returned no rows');
-            } else {
-                addDebug(`Results received: ${queryResult.rows.length} rows`);
-            }
+            queryResults = [{ title: 'Query Result', description: '', result }];
         } catch (e) {
             const errorMessage = e instanceof Error ? e.message : String(e);
             error = errorMessage;
-            queryResult = null;
+            queryResults = [];
             addDebug(`Error: ${errorMessage}`);
             console.error('Full error:', e);
         } finally {
@@ -320,6 +319,29 @@
                                 sqlQuery = e;
                                 error = null;  // Clear previous errors
                             }}
+                            onexecutemultiple={async (queries) => {
+                                isLoading = true;
+                                error = null;
+                                queryResults = [];
+                                
+                                for (const query of queries) {
+                                    try {
+                                        const result = await invoke('execute_query', {
+                                            connectionString,
+                                            query: query.sql
+                                        });
+                                        queryResults = [...queryResults, {
+                                            title: query.title,
+                                            description: query.description || '',
+                                            result
+                                        }];
+                                    } catch (err) {
+                                        error = `Error executing "${query.title}": ${err}`;
+                                        break;
+                                    }
+                                }
+                                isLoading = false;
+                            }}
                         />
                         <Textarea
                             bind:value={sqlQuery}
@@ -362,29 +384,41 @@
                     </div>
                 {/if}
 
-                {#if queryResult}
-                    <div class="mt-8">
-                        <h2 class="text-2xl font-bold mb-4">Query Results</h2>
-                        <Table.Table>
-                            <Table.TableHeader>
-                                <Table.TableRow>
-                                    {#each queryResult.columns as column}
-                                        <Table.TableHead>{column}</Table.TableHead>
-                                    {/each}
-                                </Table.TableRow>
-                            </Table.TableHeader>
-                            <Table.TableBody>
-                                {#each queryResult.rows as row}
-                                    <Table.TableRow>
-                                        {#each row as cell, columnIndex}
-                                            <Table.TableCell>
-                                                {formatCellValue(cell, queryResult.columns[columnIndex])}
-                                            </Table.TableCell>
-                                        {/each}
-                                    </Table.TableRow>
-                                {/each}
-                            </Table.TableBody>
-                        </Table.Table>
+                {#if queryResults.length > 0}
+                    <div class="mt-4 space-y-8">
+                        {#each queryResults as result}
+                            <div class="border rounded-lg overflow-hidden">
+                                <div class="bg-muted p-4">
+                                    <h3 class="font-semibold text-lg mb-1">{result.title}</h3>
+                                    {#if result.description}
+                                        <p class="text-sm text-muted-foreground">{result.description}</p>
+                                    {/if}
+                                </div>
+                                
+                                <div class="overflow-x-auto">
+                                    <Table.Root>
+                                        <Table.Header>
+                                            <Table.Row>
+                                                {#each result.result.columns as column}
+                                                    <Table.Head>{column}</Table.Head>
+                                                {/each}
+                                            </Table.Row>
+                                        </Table.Header>
+                                        <Table.Body>
+                                            {#each result.result.rows as row}
+                                                <Table.Row>
+                                                    {#each row as cell, i}
+                                                        <Table.Cell>
+                                                            {formatCellValue(cell, result.result.columns[i])}
+                                                        </Table.Cell>
+                                                    {/each}
+                                                </Table.Row>
+                                            {/each}
+                                        </Table.Body>
+                                    </Table.Root>
+                                </div>
+                            </div>
+                        {/each}
                     </div>
                 {/if}
 

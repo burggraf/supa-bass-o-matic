@@ -46,7 +46,7 @@
       "id": "8",
       "title": "Table and Index Bloat",
       "description": "Shows tables and indexes with potential bloat",
-      "sql": "WITH constants AS (\n  SELECT\n    current_setting('block_size')::numeric AS bs,\n    23 AS hdr,\n    4 AS ma\n),\nbloat_info AS (\n  SELECT\n    ma,\n    bs,\n    schemaname,\n    tablename,\n    (datawidth + (hdr + ma - (\n      CASE\n        WHEN hdr % ma = 0 THEN ma\n        ELSE hdr % ma\n      END\n    )))::numeric AS datahdr,\n    (maxfracsum * (nullhdr + ma - (\n      CASE\n        WHEN nullhdr % ma = 0 THEN ma\n        ELSE nullhdr % ma\n      END\n    ))) AS nullhdr2\n  FROM (\n    SELECT\n      schemaname,\n      tablename,\n      hdr,\n      ma,\n      bs,\n      SUM((1 - null_frac) * avg_width) AS datawidth,\n      MAX(null_frac) AS maxfracsum,\n      hdr + (\n        SELECT 1 + count(*) / 8\n        FROM pg_stats s2\n        WHERE null_frac <> 0\n          AND s2.schemaname = s.schemaname\n          AND s2.tablename = s.tablename\n      ) AS nullhdr\n    FROM\n      pg_stats s,\n      constants\n    GROUP BY\n      1, 2, 3, 4, 5\n  ) AS foo\n),\ntable_bloat AS (\n  SELECT\n    schemaname,\n    tablename,\n    cc.relpages,\n    bs,\n    CEIL((cc.reltuples * (\n      (datahdr + ma - (\n        CASE\n          WHEN datahdr % ma = 0 THEN ma\n          ELSE datahdr % ma\n        END\n      )) + nullhdr2 + 4\n    )) / (bs - 20::float)) AS otta\n  FROM\n    bloat_info\n    JOIN pg_class cc ON cc.relname = bloat_info.tablename\n    JOIN pg_namespace nn ON cc.relnamespace = nn.oid\n      AND nn.nspname = bloat_info.schemaname\n      AND nn.nspname <> 'information_schema'\n),\nindex_bloat AS (\n  SELECT\n    schemaname,\n    tablename,\n    bs,\n    COALESCE(c2.relname, '?') AS iname,\n    COALESCE(c2.reltuples, 0) AS ituples,\n    COALESCE(c2.relpages, 0) AS ipages,\n    COALESCE(\n      CEIL((c2.reltuples * (datahdr - 12)) / (bs - 20::float)),\n      0\n    ) AS iotta\n  FROM\n    bloat_info\n    JOIN pg_class cc ON cc.relname = bloat_info.tablename\n    JOIN pg_namespace nn ON cc.relnamespace = nn.oid\n      AND nn.nspname = bloat_info.schemaname\n      AND nn.nspname <> 'information_schema'\n    JOIN pg_index i ON indrelid = cc.oid\n    JOIN pg_class c2 ON c2.oid = i.indexrelid\n)\nSELECT\n  schemaname || '.' || tablename AS table,\n  pg_size_pretty(\n    bs * relpages::bigint\n  ) AS table_size,\n  pg_size_pretty(\n    bs * relpages::bigint - bs * otta::bigint\n  ) AS bloat_size,\n  round(\n    100 * (relpages::float - otta) / relpages,\n    1\n  ) AS table_waste\nFROM\n  table_bloat\nWHERE\n  round(\n    100 * (relpages::float - otta) / relpages,\n    1\n  ) >= 50\n  AND bs * relpages >= 1024 * 1024\nORDER BY\n  table_waste DESC;"
+      "sql": "WITH constants AS (\n  SELECT current_setting('block_size')::numeric AS bs, 23 AS hdr, 4 AS ma\n), bloat_info AS (\n  SELECT\n    ma,bs,schemaname,tablename,\n    (datawidth+(hdr+ma-(case when hdr%ma=0 THEN ma ELSE hdr%ma END)))::numeric AS datahdr,\n    (maxfracsum*(nullhdr+ma-(case when nullhdr%ma=0 THEN ma ELSE nullhdr%ma END))) AS nullhdr2\n  FROM (\n    SELECT\n      schemaname, tablename, hdr, ma, bs,\n      SUM((1-null_frac)*avg_width) AS datawidth,\n      MAX(null_frac) AS maxfracsum,\n      hdr+(\n        SELECT 1+count(*)/8\n        FROM pg_stats s2\n        WHERE null_frac<>0 AND s2.schemaname = s.schemaname AND s2.tablename = s.tablename\n      ) AS nullhdr\n    FROM pg_stats s, constants\n    GROUP BY 1,2,3,4,5\n  ) AS foo\n), table_bloat AS (\n  SELECT\n    schemaname, tablename, cc.relpages, bs,\n    CEIL((cc.reltuples*((datahdr+ma-\n      (CASE WHEN datahdr%ma=0 THEN ma ELSE datahdr%ma END))+nullhdr2+4))/(bs-20::float)) AS otta\n  FROM bloat_info\n  JOIN pg_class cc ON cc.relname = bloat_info.tablename\n  JOIN pg_namespace nn ON cc.relnamespace = nn.oid AND nn.nspname = bloat_info.schemaname AND nn.nspname <> 'information_schema'\n), index_bloat AS (\n  SELECT\n    schemaname, tablename, bs,\n    COALESCE(c2.relname,'?') AS iname, COALESCE(c2.reltuples,0) AS ituples, COALESCE(c2.relpages,0) AS ipages,\n    COALESCE(CEIL((c2.reltuples*(datahdr-12))/(bs-20::float)),0) AS iotta -- very rough approximation, assumes all cols\n  FROM bloat_info\n  JOIN pg_class cc ON cc.relname = bloat_info.tablename\n  JOIN pg_namespace nn ON cc.relnamespace = nn.oid AND nn.nspname = bloat_info.schemaname AND nn.nspname <> 'information_schema'\n  JOIN pg_index i ON indrelid = cc.oid\n  JOIN pg_class c2 ON c2.oid = i.indexrelid\n)\nSELECT\n  type, schemaname, object_name, bloat, pg_size_pretty(raw_waste) as waste\nFROM\n(SELECT\n  'table' as type,\n  schemaname,\n  tablename as object_name,\n  ROUND(CASE WHEN otta=0 THEN 0.0 ELSE table_bloat.relpages/otta::numeric END,1) AS bloat,\n  CASE WHEN relpages < otta THEN '0' ELSE (bs*(table_bloat.relpages-otta)::bigint)::bigint END AS raw_waste\nFROM\n  table_bloat\n    UNION\nSELECT\n  'index' as type,\n  schemaname,\n  tablename || '::' || iname as object_name,\n  ROUND(CASE WHEN iotta=0 OR ipages=0 THEN 0.0 ELSE ipages/iotta::numeric END,1) AS bloat,\n  CASE WHEN ipages < iotta THEN '0' ELSE (bs*(ipages-iotta))::bigint END AS raw_waste\nFROM\n  index_bloat) bloat_summary\nWHERE schemaname NOT IN ('pg_catalog', 'information_schema')\nORDER BY raw_waste DESC, bloat DESC;"
     },
     {
       "id": "9",
@@ -120,7 +120,7 @@
       "id": "20",
       "title": "Aggregates",
       "description": "Shows CREATE AGGREGATE statements for all aggregates in the database",
-      "sql": "SELECT\n  'CREATE AGGREGATE ' || quote_ident(n.nspname) || '.' || quote_ident(p.proname) ||\n  '(' ||\n  CASE\n    WHEN p.proargtypes[0] = 0 THEN '*'\n    ELSE pg_get_function_arguments(p.oid)\n  END || ') (\n' ||\n  '  SFUNC = ' || quote_ident(n2.nspname) || '.' || quote_ident(p2.proname) || ',\n' ||\n  '  STYPE = ' || format_type(p.prorettype, null) ||\n  CASE\n    WHEN p.proaggtransfn::text <> '-'::text THEN ',\n  FINALFUNC = ' || quote_ident(n3.nspname) || '.' || quote_ident(p3.proname)\n    ELSE ''\n  END || '\n);' AS create_aggregate\nFROM\n  pg_proc p\n  JOIN pg_namespace n ON p.pronamespace = n.oid\n  JOIN pg_proc p2 ON p.proaggtransfn = p2.oid\n  JOIN pg_namespace n2 ON p2.pronamespace = n2.oid\n  LEFT JOIN pg_proc p3 ON p.proaggfinalfn = p3.oid\n  LEFT JOIN pg_namespace n3 ON p3.pronamespace = n3.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND p.prokind = 'a'\nORDER BY\n  n.nspname, p.proname;"
+      "sql": "SELECT \n    'CREATE AGGREGATE ' || quote_ident(n.nspname) || '.' || quote_ident(p.proname) ||\n    '(' || \n    CASE \n        WHEN a.aggnumdirectargs > 0 THEN \n            pg_catalog.array_to_string(ARRAY(\n                SELECT pg_catalog.format_type(p.proargtypes[s.i], NULL)\n                FROM pg_catalog.generate_series(0, pg_catalog.array_length(p.proargtypes, 1) - 1) AS s(i)\n            ), ', ') \n        ELSE \n            pg_catalog.pg_get_function_arguments(p.oid) \n    END || ') (' ||\n    'SFUNC = ' || quote_ident(sf_n.nspname) || '.' || quote_ident(sf.proname) || ', ' ||\n    'STYPE = ' || format_type(a.aggtranstype, NULL) ||\n    CASE WHEN a.aggfinalfn != 0 THEN ', FINALFUNC = ' || quote_ident(ff_n.nspname) || '.' || quote_ident(ff.proname) ELSE '' END ||\n    CASE WHEN a.agginitval IS NOT NULL THEN ', INITCOND = ' || quote_literal(a.agginitval) ELSE '' END ||\n    ');' AS create_aggregate\nFROM \n    pg_aggregate a\nJOIN \n    pg_proc p ON p.oid = a.aggfnoid\nJOIN \n    pg_namespace n ON n.oid = p.pronamespace\nJOIN \n    pg_proc sf ON sf.oid = a.aggtransfn\nJOIN \n    pg_namespace sf_n ON sf_n.oid = sf.pronamespace\nLEFT JOIN \n    pg_proc ff ON ff.oid = a.aggfinalfn\nLEFT JOIN \n    pg_namespace ff_n ON ff_n.oid = ff.pronamespace\nWHERE \n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY \n    n.nspname, p.proname;"
     },
     {
       "id": "21",
@@ -174,7 +174,7 @@
       "id": "29",
       "title": "Search Configuration Mappings",
       "description": "Shows ALTER TEXT SEARCH CONFIGURATION statements for all text search configuration mappings in the database",
-      "sql": "SELECT\n    'ALTER TEXT SEARCH CONFIGURATION ' || quote_ident(n.nspname) || '.' || quote_ident(c.cfgname) ||\n    ' ADD MAPPING FOR ' || quote_ident(m.mapcfg::text) ||\n    ' WITH ' || quote_ident(nd.nspname) || '.' || quote_ident(d.dictname) || ';'\nFROM\n    (\n        SELECT\n            c.*,\n            m.mapcfg,\n            m.mapdict,\n            row_number() OVER (PARTITION BY c.oid ORDER BY m.mapcfg) as rn\n        FROM\n            pg_ts_config c\n            LEFT JOIN pg_ts_config_map m ON c.oid = m.mapcfg\n    ) c\n    JOIN pg_namespace n ON c.cfgnamespace = n.oid\n    JOIN pg_ts_parser p ON c.cfgparser = p.oid\n    JOIN pg_namespace np ON p.prsnamespace = np.oid\n    LEFT JOIN pg_ts_dict d ON c.mapdict = d.oid\n    LEFT JOIN pg_namespace nd ON d.dictnamespace = nd.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, c.cfgname;"
+      "sql": "SELECT\n    'ALTER TEXT SEARCH CONFIGURATION ' || quote_ident(n.nspname) || '.' || quote_ident(c.cfgname) ||\n    ' ADD MAPPING FOR ' || quote_ident(c.mapcfg::text) ||\n    ' WITH ' || quote_ident(nd.nspname) || '.' || quote_ident(d.dictname) || ';'\nFROM\n    (\n        SELECT\n            c.*,\n            m.mapcfg,\n            m.mapdict,\n            row_number() OVER (PARTITION BY c.oid ORDER BY m.mapcfg) as rn\n        FROM\n            pg_ts_config c\n            LEFT JOIN pg_ts_config_map m ON c.oid = m.mapcfg\n    ) c\n    JOIN pg_namespace n ON c.cfgnamespace = n.oid\n    JOIN pg_ts_parser p ON c.cfgparser = p.oid\n    JOIN pg_namespace np ON p.prsnamespace = np.oid\n    LEFT JOIN pg_ts_dict d ON c.mapdict = d.oid\n    LEFT JOIN pg_namespace nd ON d.dictnamespace = nd.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, c.cfgname;"
     },
     {
       "id": "30",
@@ -226,54 +226,48 @@
     },
     {
       "id": "38",
-      "title": "Text Search Configurations",
-      "description": "Shows CREATE TEXT SEARCH CONFIGURATION statements",
-      "sql": "SELECT\n  string_agg(\n    CASE\n      WHEN rn = 1 THEN\n        'CREATE TEXT SEARCH CONFIGURATION ' ||\n        quote_ident(n.nspname) || '.' || quote_ident(c.cfgname) || ' (' ||\n        'PARSER = ' || quote_ident(np.nspname) || '.' || quote_ident(p.prsname) ||\n        ');'\n      ELSE\n        'ALTER TEXT SEARCH CONFIGURATION ' ||\n        quote_ident(n.nspname) || '.' || quote_ident(c.cfgname) ||\n        ' ADD MAPPING FOR ' || quote_ident(m.mapcfg::text) ||\n        ' WITH ' || quote_ident(nd.nspname) || '.' || quote_ident(d.dictname) || ';'\n    END,\n    E'\\n'\n  ) AS create_ts_config\nFROM\n  (\n    SELECT\n      c.*,\n      m.mapcfg,\n      m.mapdict,\n      row_number() OVER (PARTITION BY c.oid ORDER BY m.mapcfg) as rn\n    FROM\n      pg_ts_config c\n      LEFT JOIN pg_ts_config_map m ON c.oid = m.mapcfg\n  ) c\n  JOIN pg_namespace n ON c.cfgnamespace = n.oid\n  JOIN pg_ts_parser p ON c.cfgparser = p.oid\n  JOIN pg_namespace np ON p.prsnamespace = np.oid\n  LEFT JOIN pg_ts_dict d ON c.mapdict = d.oid\n  LEFT JOIN pg_namespace nd ON d.dictnamespace = nd.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema')\nGROUP BY\n  n.nspname,\n  c.cfgname,\n  np.nspname,\n  p.prsname"
-    },
-    {
-      "id": "39",
       "title": "Foreign Data Wrappers",
       "description": "Shows CREATE FOREIGN DATA WRAPPER statements",
       "sql": "SELECT\n    'CREATE FOREIGN DATA WRAPPER ' || quote_ident(fdw.fdwname) ||\n    CASE\n      WHEN fdw.fdwhandler <> 0 THEN ' HANDLER ' || pg_get_function_identity_arguments(fdw.fdwhandler)\n      ELSE ''\n    END ||\n    CASE\n      WHEN fdw.fdwvalidator <> 0 THEN ' VALIDATOR ' || pg_get_function_identity_arguments(fdw.fdwvalidator)\n      ELSE ''\n    END || ';' AS create_fdw\nFROM\n    pg_foreign_data_wrapper fdw\nWHERE\n    fdw.fdwname NOT IN ('postgres_fdw', 'file_fdw');"
     },
     {
-      "id": "40",
+      "id": "39",
       "title": "Foreign Servers",
       "description": "Shows CREATE SERVER statements",
       "sql": "SELECT\n    'CREATE SERVER ' || quote_ident(srv.srvname) ||\n    ' FOREIGN DATA WRAPPER ' || quote_ident(fdw.fdwname) ||\n    CASE\n      WHEN srv.srvtype IS NOT NULL THEN ' TYPE ' || quote_literal(srv.srvtype)\n      ELSE ''\n    END ||\n    CASE\n      WHEN srv.srvversion IS NOT NULL THEN ' VERSION ' || quote_literal(srv.srvversion)\n      ELSE ''\n    END ||\n    (CASE\n      WHEN srv.srvoptions IS NOT NULL THEN ' OPTIONS (' || array_to_string(srv.srvoptions, ', ') || ')'\n      ELSE ''\n    END) || ';' AS create_server\nFROM\n    pg_foreign_server srv\n    JOIN pg_foreign_data_wrapper fdw ON srv.srvfdw = fdw.oid;"
     },
     {
-      "id": "41",
+      "id": "40",
       "title": "User Mappings",
       "description": "Shows CREATE USER MAPPING statements",
       "sql": "SELECT\n    'CREATE USER MAPPING FOR ' || quote_ident(um.usename) ||\n    ' SERVER ' || quote_ident(srv.srvname) ||\n    (CASE\n      WHEN um.umoptions IS NOT NULL THEN ' OPTIONS (' || array_to_string(um.umoptions, ', ') || ')'\n      ELSE ''\n    END) || ';' AS create_user_mapping\nFROM\n    pg_user_mappings um\n    JOIN pg_foreign_server srv ON um.srvid = srv.oid;"
     },
     {
-      "id": "42",
+      "id": "41",
       "title": "Row Level Security Policies",
       "description": "Shows CREATE POLICY statements",
       "sql": "SELECT\n    'CREATE POLICY ' || quote_ident(pol.polname) ||\n    ' ON ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    CASE\n      WHEN pol.polcmd::text != '*' THEN ' FOR ' || pol.polcmd::text\n      ELSE ''\n    END ||\n    CASE\n      WHEN pol.polroles <> '{0}' THEN\n        ' TO ' || array_to_string(array(\n          SELECT quote_ident(rolname)\n          FROM pg_roles\n          WHERE oid = ANY(pol.polroles)\n        ), ', ')\n      ELSE ''\n    END ||\n    CASE\n      WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_get_expr(pol.polqual, pol.polrelid) || ')'\n      ELSE ''\n    END ||\n    CASE\n      WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_get_expr(pol.polwithcheck, pol.polrelid) || ')'\n      ELSE ''\n    END || ';' AS create_policy\nFROM\n    pg_policy pol\n    JOIN pg_class c ON pol.polrelid = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema');"
     },
     {
-      "id": "43",
+      "id": "42",
       "title": "Publications",
       "description": "Shows CREATE PUBLICATION statements",
       "sql": "SELECT\n    'CREATE PUBLICATION ' || quote_ident(pub.pubname) ||\n    CASE\n      WHEN pub.puballtables THEN ' FOR ALL TABLES'\n      ELSE ' FOR TABLE ' || string_agg(quote_ident(n.nspname) || '.' || quote_ident(c.relname), ', ')\n    END || ';' AS create_publication\nFROM\n    pg_publication pub\n    LEFT JOIN pg_publication_rel pr ON pub.oid = pr.prpubid\n    LEFT JOIN pg_class c ON pr.prrelid = c.oid\n    LEFT JOIN pg_namespace n ON c.relnamespace = n.oid\nGROUP BY\n    pub.pubname,\n    pub.puballtables;"
     },
     {
-      "id": "44",
+      "id": "43",
       "title": "Extensions",
       "description": "Shows CREATE EXTENSION statements",
       "sql": "SELECT\n    'CREATE EXTENSION IF NOT EXISTS ' || quote_ident(ext.extname) ||\n    ' WITH SCHEMA ' || quote_ident(n.nspname) ||\n    CASE\n      WHEN ext.extversion IS NOT NULL THEN ' VERSION ' || quote_literal(ext.extversion)\n      ELSE ''\n    END || ';' AS create_extension\nFROM\n    pg_extension ext\n    JOIN pg_namespace n ON ext.extnamespace = n.oid\nWHERE\n    ext.extname NOT IN ('plpgsql');"
     },
     {
-      "id": "45",
+      "id": "44",
       "title": "Statistics",
       "description": "Shows CREATE STATISTICS statements",
       "sql": "SELECT\n    'CREATE STATISTICS ' || quote_ident(s.stxname) ||\n    ' (' || array_to_string(ARRAY(\n        SELECT\n            CASE\n                WHEN stxkind[i] = 'd' THEN 'NDISTINCT'\n                WHEN stxkind[i] = 'f' THEN 'DEPENDENCIES'\n                WHEN stxkind[i] = 'm' THEN 'MCV'\n            END\n        FROM generate_subscripts(s.stxkind, 1) as i\n    ), ', ') || ')' ||\n    ' ON ' || array_to_string(ARRAY_AGG(quote_ident(a.attname)), ', ') ||\n    ' FROM ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) || ';' AS create_statistics\nFROM\n    pg_statistic_ext s\n    JOIN pg_class c ON s.stxrelid = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\n    JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(s.stxkeys)\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nGROUP BY\n    s.stxname,\n    s.stxkind,\n    n.nspname,\n    c.relname;"
     },
     {
-      "id": "46",
+      "id": "45",
       "title": "Comments",
       "description": "Shows COMMENT ON statements for tables, views, and materialized views",
       "sql": "SELECT\n    'COMMENT ON TABLE ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    ' IS ' || quote_literal(obj_description(c.oid, 'pg_class')) || ';' AS comment_table\nFROM\n    pg_class c\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    c.relkind IN ('r', 'v', 'm')\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND obj_description(c.oid, 'pg_class') IS NOT NULL;"

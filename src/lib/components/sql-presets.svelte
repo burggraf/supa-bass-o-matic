@@ -4,16 +4,50 @@ import presets from '$lib/data/sql-presets.json';
 import { Button } from '$lib/components/ui/button';
 import * as Dialog from '$lib/components/ui/dialog';
 import * as Accordion from '$lib/components/ui/accordion';
+import { Checkbox } from '$lib/components/ui/checkbox';
 
-let { onselect } = $props<{
+let { onselect, onexecutemultiple } = $props<{
   onselect: (sql: string) => void;
+  onexecutemultiple: (queries: Array<{ title: string, sql: string, description: string }>) => void;
 }>();
 
 let isOpen = $state(false);
+let selectedItems = $state<Array<{ id: string, title: string, sql: string }>>([]);
 
-function handlePresetSelect(sql: string) {
-  onselect(sql);
-  isOpen = false;
+function isSelected(id: string) {
+  return selectedItems.some(item => item.id === id);
+}
+
+function handlePresetSelect(id: string, title: string, sql: string, checked: boolean) {
+  console.log('handlePresetSelect', { id, title, checked, currentSelected: selectedItems });
+  
+  if (!checked) {
+    selectedItems = selectedItems.filter(item => item.id !== id);
+  } else {
+    selectedItems = [...selectedItems, { id, title, sql }];
+  }
+  
+  console.log('After update:', selectedItems);
+}
+
+function handleExecuteSelected() {
+  console.log('handleExecuteSelected', selectedItems);
+  if (selectedItems.length > 0) {
+    onexecutemultiple(selectedItems.map(({ id, title, sql }) => {
+      // Find the original item to get its description
+      const category = Object.values(categories).find(cat => 
+        cat.items.some(item => item.id === id)
+      );
+      const originalItem = category?.items.find(item => item.id === id);
+      return { 
+        title, 
+        sql,
+        description: originalItem?.description || ''
+      };
+    }));
+    isOpen = false;
+    selectedItems = [];
+  }
 }
 
 const categories = {
@@ -24,7 +58,7 @@ const categories = {
 
 <div class="flex-1">
   <Button variant="outline" onclick={() => isOpen = true} class="w-full justify-start">
-    Choose a SQL preset
+    Choose SQL presets ({selectedItems.length} selected)
   </Button>
 
   <Dialog.Dialog bind:open={isOpen}>
@@ -32,7 +66,7 @@ const categories = {
       <Dialog.DialogHeader>
         <Dialog.DialogTitle>SQL Presets</Dialog.DialogTitle>
         <Dialog.DialogDescription>
-          Choose from our collection of pre-written SQL queries
+          Select one or more SQL queries to execute
         </Dialog.DialogDescription>
       </Dialog.DialogHeader>
 
@@ -47,22 +81,20 @@ const categories = {
                 <Accordion.Root type="single" class="px-2">
                   {#each category.items as item}
                     <Accordion.Item value={item.id}>
-                      <Accordion.Trigger>
-                        <div class="flex items-center justify-between w-full">
-                          <span class="font-medium">{item.title}</span>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onclick={(e) => {
-                              e.stopPropagation();
-                              handlePresetSelect(item.sql);
+                      <div class="flex items-center px-4 py-2">
+                        <div onclick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={isSelected(item.id)}
+                            onCheckedChange={(checked: boolean) => {
+                              handlePresetSelect(item.id, item.title, item.sql, checked);
                             }}
-                            class="ml-2"
-                          >
-                            Select
-                          </Button>
+                            class="mr-2"
+                          />
                         </div>
-                      </Accordion.Trigger>
+                        <Accordion.Trigger class="flex-1 text-left">
+                          <span class="font-medium">{item.title}</span>
+                        </Accordion.Trigger>
+                      </div>
                       <Accordion.Content class="-mt-4">
                         <div class="pb-4">
                           <p class="text-sm text-muted-foreground mb-2">{item.description}</p>
@@ -78,10 +110,25 @@ const categories = {
         </Accordion.Root>
       </div>
 
-      <Dialog.DialogFooter>
-        <Button variant="outline" onclick={() => isOpen = false}>
-          Cancel
-        </Button>
+      <Dialog.DialogFooter class="flex justify-between">
+        <div class="text-sm text-muted-foreground">
+          {selectedItems.length} queries selected
+        </div>
+        <div class="space-x-2">
+          <Button variant="outline" onclick={() => {
+            isOpen = false;
+            selectedItems = [];
+          }}>
+            Cancel
+          </Button>
+          <Button 
+            variant="default" 
+            onclick={handleExecuteSelected}
+            disabled={selectedItems.length === 0}
+          >
+            Execute Selected ({selectedItems.length})
+          </Button>
+        </div>
       </Dialog.DialogFooter>
     </Dialog.DialogContent>
   </Dialog.Dialog>
