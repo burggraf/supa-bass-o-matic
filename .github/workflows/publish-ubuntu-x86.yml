@@ -52,6 +52,12 @@ jobs:
       - name: Build web assets
         run: npm run build
 
+      - name: List build directory
+        shell: bash
+        run: |
+          echo "Listing target directory contents:"
+          ls -R src-tauri/target/release/bundle/
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -67,11 +73,6 @@ jobs:
           appName: "supa-bass-o-matic"
           appVersion: "0.1.0"
           artifactPaths: |
-            src-tauri/target/release/bundle/deb/supa-bass-o-matic_0.1.0_amd64.deb
-            src-tauri/target/release/bundle/deb/*.deb.sig
-            src-tauri/target/release/bundle/rpm/supa-bass-o-matic-0.1.0-1.x86_64.rpm
-            src-tauri/target/release/bundle/rpm/*.rpm.sig
-            src-tauri/target/release/bundle/appimage/supa-bass-o-matic_0.1.0_amd64.AppImage
-            src-tauri/target/release/bundle/appimage/supa-bass-o-matic_0.1.0_amd64.AppImage.tar.gz
-            src-tauri/target/release/bundle/appimage/*.AppImage.sig
-            src-tauri/target/release/bundle/appimage/*.tar.gz.sig
+            src-tauri/target/release/bundle/**/*.deb*
+            src-tauri/target/release/bundle/**/*.rpm*
+            src-tauri/target/release/bundle/**/*.AppImage*
