@@ -41,10 +41,37 @@ jobs:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+          # Install only minimum required packages without recommended dependencies
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            pkg-config \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Configure library paths
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          # Create pkg-config wrapper for controlled library paths
+          sudo tee /usr/local/bin/pkg-config-wrapper << 'EOF' > /dev/null
+          #!/bin/sh
+          export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig
+          export PKG_CONFIG_LIBDIR=/usr/lib/x86_64-linux-gnu/pkgconfig
+          export PKG_CONFIG_SYSROOT_DIR=/
+          export PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1
+          export PKG_CONFIG_ALLOW_SYSTEM_LIBS=1
+          exec pkg-config "$@"
+          EOF
+          sudo chmod +x /usr/local/bin/pkg-config-wrapper
+          
+          # Set environment variables for build
+          echo "PKG_CONFIG=/usr/local/bin/pkg-config-wrapper" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
 
       - name: Install analysis tools
         run: |
@@ -59,11 +86,18 @@ jobs:
 
       - name: Set environment variables for optimization
         run: |
-          echo "RUSTFLAGS=-C opt-level=z -C codegen-units=1 -C lto=true" >> $GITHUB_ENV
+          # Optimization flags for maximum size reduction
+          echo "RUSTFLAGS=-C opt-level=z -C codegen-units=1 -C lto=true -C embed-bitcode=yes -C strip=symbols" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_LTO=true" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_PANIC=abort" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_OPT_LEVEL=z" >> $GITHUB_ENV
+          # Control dynamic linking
+          echo "CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG=false" >> $GITHUB_ENV
+          echo "CARGO_PROFILE_RELEASE_INCREMENTAL=false" >> $GITHUB_ENV
+          # WebKit optimization
+          echo "WEBKIT_DISABLE_COMPOSITING_MODE=1" >> $GITHUB_ENV
+          echo "WEBKIT_FORCE_MINIMAL_FEATURES=1" >> $GITHUB_ENV
 
       - uses: tauri-apps/tauri-action@v0
         env:
