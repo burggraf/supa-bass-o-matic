@@ -23,7 +23,6 @@ time = { version = "0.3", features = ["formatting", "parsing"] }
 rust_decimal = { version = "1.32", features = ["db-tokio-postgres"] }
 
 [features]
-default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 
 [profile.release]

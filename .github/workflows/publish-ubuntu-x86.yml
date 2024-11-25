@@ -15,14 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          #- platform: "macos-latest" # for Arm based macs (M1 and above).
-          #  args: "--target aarch64-apple-darwin"
-          #- platform: "macos-latest" # for Intel based macs.
-          #  args: "--target x86_64-apple-darwin"
-          - platform: "ubuntu-22.04" # for Tauri v1 you could replace this with ubuntu-20.04.
-            args: "--target x86_64-unknown-linux-gnu --features custom-protocol"
-          #- platform: "windows-latest"
-          #  args: ""
+          - platform: "ubuntu-22.04"
+            args: "--target x86_64-unknown-linux-gnu"
 
     runs-on: ${{ matrix.platform }}
 
@@ -134,23 +128,6 @@ jobs:
           cargo update --verbose
           cargo fetch --verbose
 
-      - name: Build Tauri app
-        timeout-minutes: 30
-        if: matrix.platform == 'ubuntu-22.04'
-        working-directory: src-tauri
-        run: |
-          echo "=== Building Tauri app with verbose output ==="
-          RUST_BACKTRACE=1 cargo tauri build --verbose --features custom-protocol
-          
-          echo "=== Checking build artifacts ==="
-          if [ -d "target/release/bundle" ]; then
-            echo "Bundle directory contents:"
-            ls -la target/release/bundle/
-          else
-            echo "Bundle directory not found"
-            exit 1
-          fi
-
       - name: Build
         uses: tauri-apps/tauri-action@v0
         env:
@@ -164,8 +141,6 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
-          includeDebug: false
-          includeRelease: true
 
       # Diagnostic steps
       - name: Check build output
