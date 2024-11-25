@@ -17,11 +17,14 @@
       "copyright": "",
       "deb": {
         "depends": [
-          "webkit2gtk-4.0",
-          "libgtk-3-0",
-          "libwebkit2gtk-4.0-37",
+          "webkit2gtk-4.0 (>= 2.36)",
+          "libwebkit2gtk-4.0-37 (>= 2.36)",
+          "libgtk-3-0 (>= 3.24)",
           "libappindicator3-1",
-          "librsvg2-2"
+          "librsvg2-2",
+          "libjavascriptcoregtk-4.0-18",
+          "libicu70",
+          "libsoup2.4-1"
         ]
       },
       "externalBin": [],

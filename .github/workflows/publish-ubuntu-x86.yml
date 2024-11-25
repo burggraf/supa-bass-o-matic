@@ -44,7 +44,6 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          # Install only minimum required packages without recommended dependencies
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             pkg-config \
@@ -52,8 +51,7 @@ jobs:
             libwebkit2gtk-4.0-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            patchelf \
-            webkit2gtk-4.0
+            patchelf
 
       - name: Configure build environment
         if: matrix.platform == 'ubuntu-22.04'
@@ -61,6 +59,8 @@ jobs:
           # Set environment variables to prefer system libraries
           echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          
+          # WebKit optimization
           echo "WEBKIT_DISABLE_COMPOSITING_MODE=1" >> $GITHUB_ENV
           echo "WEBKIT_FORCE_MINIMAL_FEATURES=1" >> $GITHUB_ENV
           
@@ -71,6 +71,17 @@ jobs:
           echo "CARGO_PROFILE_RELEASE_OPT_LEVEL=z" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG=false" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_INCREMENTAL=false" >> $GITHUB_ENV
+
+      - name: Configure dynamic linking
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          echo "RUSTFLAGS=$RUSTFLAGS -C link-args=-Wl,--as-needed" >> $GITHUB_ENV
+          
+          # Create linker configuration
+          sudo tee /etc/ld.so.conf.d/tauri.conf << EOF
+          /usr/lib/x86_64-linux-gnu
+          EOF
+          sudo ldconfig
 
       - name: Install analysis tools
         run: |
