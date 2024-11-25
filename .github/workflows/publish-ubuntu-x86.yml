@@ -129,6 +129,7 @@ jobs:
           cache-on-failure: true
 
       - name: Update Cargo index
+        working-directory: src-tauri
         run: |
           cargo update --verbose
           cargo fetch --verbose
@@ -136,14 +137,15 @@ jobs:
       - name: Build Tauri app
         timeout-minutes: 30
         if: matrix.platform == 'ubuntu-22.04'
+        working-directory: src-tauri
         run: |
           echo "=== Building Tauri app with verbose output ==="
           RUST_BACKTRACE=1 cargo tauri build --verbose
           
           echo "=== Checking build artifacts ==="
-          if [ -d "src-tauri/target/release/bundle" ]; then
+          if [ -d "target/release/bundle" ]; then
             echo "Bundle directory contents:"
-            ls -la src-tauri/target/release/bundle/
+            ls -la target/release/bundle/
           else
             echo "Bundle directory not found"
             exit 1
