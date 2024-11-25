@@ -140,7 +140,7 @@ jobs:
         working-directory: src-tauri
         run: |
           echo "=== Building Tauri app with verbose output ==="
-          RUST_BACKTRACE=1 cargo tauri build --verbose
+          RUST_BACKTRACE=1 cargo tauri build --verbose --features custom-protocol
           
           echo "=== Checking build artifacts ==="
           if [ -d "target/release/bundle" ]; then
