@@ -11,39 +11,60 @@
     "version": "0.1.0"
   },
   "tauri": {
-    "allowlist": {
-      "shell": {
-        "all": false,
-        "open": true
-      }
-    },
     "bundle": {
       "active": true,
-      "targets": ["app", "deb", "rpm", "appimage", "msi", "nsis"],
-      "identifier": "com.supabasecommunity.supabassomatic",
+      "category": "DeveloperTool",
+      "copyright": "",
+      "deb": {
+        "depends": [
+          "webkit2gtk-4.0",
+          "libgtk-3-0",
+          "libwebkit2gtk-4.0-37",
+          "libappindicator3-1",
+          "librsvg2-2"
+        ]
+      },
+      "externalBin": [],
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
         "icons/128x128@2x.png",
         "icons/icon.icns",
         "icons/icon.ico"
-      ]
+      ],
+      "identifier": "com.supabasecommunity.supabassomatic",
+      "longDescription": "",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": [],
+      "shortDescription": "",
+      "targets": ["deb", "appimage"],
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
     },
     "security": {
       "csp": null
     },
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
+    },
     "windows": [
       {
         "fullscreen": false,
+        "height": 600,
         "resizable": true,
-        "title": "supa-bass-o-matic",
-        "width": 800,
-        "height": 600
+        "title": "Supa Bass-O-Matic",
+        "width": 800
       }
-    ],
-    "cli": {
-      "description": "supa-bass-o-matic PostgreSQL Query Tool",
-      "args": []
-    }
+    ]
   }
 }
