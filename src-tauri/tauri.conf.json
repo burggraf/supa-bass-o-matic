@@ -30,7 +30,8 @@
         "icons/128x128.png",
         "icons/128x128@2x.png",
         "icons/icon.icns",
-        "icons/icon.ico"
+        "icons/icon.ico",
+        "icons/icon.svg"
       ],
       "identifier": "com.supabasecommunity.supabassomatic",
       "longDescription": "",
@@ -54,7 +55,7 @@
       "csp": null
     },
     "systemTray": {
-      "iconPath": "icons/icon.png",
+      "iconPath": "icons/icon.svg",
       "iconAsTemplate": true
     },
     "windows": [
