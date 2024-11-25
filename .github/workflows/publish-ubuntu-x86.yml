@@ -65,7 +65,7 @@ jobs:
           echo "WEBKIT_FORCE_MINIMAL_FEATURES=1" >> $GITHUB_ENV
           
           # Rust specific optimizations
-          echo "RUSTFLAGS=-C opt-level=z -C codegen-units=1 -C lto=true -C embed-bitcode=yes -C strip=symbols -C prefer-dynamic=yes" >> $GITHUB_ENV
+          echo "RUSTFLAGS=-C opt-level=z -C codegen-units=1 -C lto=true -C embed-bitcode=yes -C strip=symbols" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_LTO=true" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1" >> $GITHUB_ENV
           echo "CARGO_PROFILE_RELEASE_OPT_LEVEL=z" >> $GITHUB_ENV
