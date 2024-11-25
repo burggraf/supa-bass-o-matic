@@ -132,18 +132,44 @@ jobs:
           prerelease: false
           args: "--target x86_64-unknown-linux-gnu"
 
+      # Diagnostic steps
+      - name: Check build output
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          echo "=== Checking AppImage artifacts ==="
+          if [ -d "src-tauri/target/release/bundle/appimage" ]; then
+            ls -lh src-tauri/target/release/bundle/appimage/*.AppImage 2>/dev/null || echo "No AppImage found"
+          else
+            echo "AppImage directory not found"
+          fi
+          
+          echo "=== Checking AppDir status ==="
+          if [ -d "src-tauri/target/release/bundle/appimage/supa-bass-o-matic.AppDir" ]; then
+            echo "AppDir exists and contains $(find src-tauri/target/release/bundle/appimage/supa-bass-o-matic.AppDir -type f | wc -l) files"
+            du -sh src-tauri/target/release/bundle/appimage/supa-bass-o-matic.AppDir
+          else
+            echo "AppDir not found"
+          fi
+
       # Post-build optimization for AppImage
       - name: Optimize AppImage
         if: matrix.platform == 'ubuntu-22.04'
         run: |
-          # Strip debug symbols from libraries
           if [ -d "src-tauri/target/release/bundle/appimage/supa-bass-o-matic.AppDir" ]; then
-            find src-tauri/target/release/bundle/appimage/supa-bass-o-matic.AppDir -type f -name "*.so*" -exec strip --strip-all {} \;
+            echo "=== Running optimizations ==="
+            echo "1. Stripping debug symbols..."
+            find src-tauri/target/release/bundle/appimage/supa-bass-o-matic.AppDir -type f -name "*.so*" -exec strip --strip-all {} \; 2>/dev/null || true
             
-            # Remove unnecessary files based on exclude list
+            echo "2. Removing unnecessary files..."
             while read -r pattern; do
-              rm -rf "src-tauri/target/release/bundle/appimage/supa-bass-o-matic.AppDir/$pattern"
+              rm -rf "src-tauri/target/release/bundle/appimage/supa-bass-o-matic.AppDir/$pattern" 2>/dev/null || true
             done < exclude.list
+            
+            echo "=== Final size ==="
+            du -sh src-tauri/target/release/bundle/appimage/supa-bass-o-matic.AppDir
+          else
+            echo "AppDir not found for optimization"
+            exit 1
           fi
 
       - name: Upload Release Artifacts
