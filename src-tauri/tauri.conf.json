@@ -1,75 +1,71 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "identifier": "com.supabasecommunity.supabassomatic",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
     "devPath": "http://localhost:5173",
     "distDir": "../build"
   },
+  "bundle": {
+    "active": true,
+    "category": "DeveloperTool",
+    "copyright": "",
+    "deb": {
+      "depends": [
+        "webkit2gtk-4.0 (>= 2.36)",
+        "libwebkit2gtk-4.0-37 (>= 2.36)",
+        "libjavascriptcoregtk-4.0-18 (>= 2.36)",
+        "libgtk-3-0 (>= 3.24)",
+        "librsvg2-2 (>= 2.50)",
+        "libsoup2.4-1 (>= 2.74)",
+        "libayatana-appindicator3-1",
+        "libicu70",
+        "libc6 (>= 2.35)"
+      ]
+    },
+    "externalBin": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.svg"
+    ],
+    "longDescription": "",
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
+    },
+    "resources": [],
+    "shortDescription": "",
+    "targets": ["deb", "appimage"]
+  },
   "package": {
     "productName": "supa-bass-o-matic",
     "version": "0.1.0"
   },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "category": "DeveloperTool",
-      "copyright": "",
-      "deb": {
-        "depends": [
-          "webkit2gtk-4.0 (>= 2.36)",
-          "libwebkit2gtk-4.0-37 (>= 2.36)",
-          "libjavascriptcoregtk-4.0-18 (>= 2.36)",
-          "libgtk-3-0 (>= 3.24)",
-          "librsvg2-2 (>= 2.50)",
-          "libsoup2.4-1 (>= 2.74)",
-          "libappindicator3-1",
-          "libicu70",
-          "libc6 (>= 2.35)"
-        ]
-      },
-      "externalBin": [],
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico",
-        "icons/icon.svg"
-      ],
-      "identifier": "com.supabasecommunity.supabassomatic",
-      "longDescription": "",
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      },
-      "resources": [],
-      "shortDescription": "",
-      "targets": ["deb", "appimage"],
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
-    "security": {
-      "csp": null
-    },
-    "systemTray": {
-      "iconPath": "icons/128x128.png",
-      "iconAsTemplate": true
-    },
-    "windows": [
-      {
-        "fullscreen": false,
-        "height": 600,
-        "resizable": true,
-        "title": "Supa Bass-O-Matic",
-        "width": 800
-      }
-    ]
-  }
+  "security": {
+    "csp": null
+  },
+  "systemTray": {
+    "iconPath": "icons/128x128.png",
+    "iconAsTemplate": true
+  },
+  "updater": {
+    "active": false
+  },
+  "windows": [
+    {
+      "fullscreen": false,
+      "height": 600,
+      "resizable": true,
+      "title": "Supa Bass-O-Matic",
+      "width": 800
+    }
+  ]
 }
