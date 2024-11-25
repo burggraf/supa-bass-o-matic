@@ -89,23 +89,29 @@ jobs:
         if: success()
         shell: bash
         run: |
-          if [ -d "src-tauri/target/release/bundle/" ]; then
+          TARGET_DIR="src-tauri/target/x86_64-unknown-linux-gnu/release/bundle"
+          if [ -d "$TARGET_DIR" ]; then
             echo "Listing target directory contents:"
-            ls -R src-tauri/target/release/bundle/
+            ls -R "$TARGET_DIR"
             echo "File sizes:"
-            find src-tauri/target/release/bundle/ -type f -exec ls -lh {} \;
+            find "$TARGET_DIR" -type f -exec ls -lh {} \;
             echo "Binary analysis:"
-            if [ -f src-tauri/target/release/bundle/appimage/*.AppImage ]; then
+            if [ -f "$TARGET_DIR/appimage"/*.AppImage ]; then
               echo "Analyzing AppImage..."
-              size src-tauri/target/release/bundle/appimage/*.AppImage
-              readelf -s src-tauri/target/release/bundle/appimage/*.AppImage || true
+              size "$TARGET_DIR/appimage"/*.AppImage
+              readelf -s "$TARGET_DIR/appimage"/*.AppImage || true
               echo "Extracting AppImage to analyze contents..."
               cd /tmp
-              cp src-tauri/target/release/bundle/appimage/*.AppImage ./
+              cp "$TARGET_DIR/appimage"/*.AppImage ./
               chmod +x ./*.AppImage
               ./*.AppImage --appimage-extract || true
-              du -sh squashfs-root/* || true
+              echo "Directory sizes:"
+              du -sh squashfs-root/* 2>/dev/null || true
+              echo "Largest files:"
+              find squashfs-root -type f -exec ls -lh {} \; | sort -rh | head -n 10 || true
             fi
           else
-            echo "Bundle directory does not exist"
+            echo "Bundle directory does not exist at $TARGET_DIR"
+            echo "Contents of src-tauri/target:"
+            ls -R src-tauri/target || true
           fi
