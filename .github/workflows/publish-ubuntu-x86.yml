@@ -52,16 +52,25 @@ jobs:
       - name: Build web assets
         run: npm run build
 
+      - name: Set environment variables for optimization
+        run: |
+          echo "RUSTFLAGS=-C opt-level=z -C codegen-units=1 -C lto=true" >> $GITHUB_ENV
+          echo "CARGO_PROFILE_RELEASE_LTO=true" >> $GITHUB_ENV
+          echo "CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1" >> $GITHUB_ENV
+          echo "CARGO_PROFILE_RELEASE_PANIC=abort" >> $GITHUB_ENV
+          echo "CARGO_PROFILE_RELEASE_OPT_LEVEL=z" >> $GITHUB_ENV
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_LINKER: "rust-lld"
         with:
           tagName: app-v0.1.0
           releaseName: "App v0.1.0"
           releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
+          args: "--target x86_64-unknown-linux-gnu -- --features optimize"
           distPath: ./build
           bundleIdentifier: com.supabasecommunity.supabassomatic
           appName: "supa-bass-o-matic"
@@ -78,6 +87,13 @@ jobs:
           if [ -d "src-tauri/target/release/bundle/" ]; then
             echo "Listing target directory contents:"
             ls -R src-tauri/target/release/bundle/
+            echo "File sizes:"
+            find src-tauri/target/release/bundle/ -type f -exec ls -lh {} \;
+            echo "AppImage contents:"
+            if [ -f src-tauri/target/release/bundle/appimage/*.AppImage ]; then
+              echo "Extracting AppImage contents list..."
+              ./src-tauri/target/release/bundle/appimage/*.AppImage --appimage-extract-and-run --list || true
+            fi
           else
             echo "Bundle directory does not exist"
           fi
