@@ -20,11 +20,7 @@
         "width": 800
       }
     ],
-    "withGlobalTauri": true,
-    "systemTray": {
-      "iconPath": "icons/128x128.png",
-      "iconAsTemplate": true
-    }
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
