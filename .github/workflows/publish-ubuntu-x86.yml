@@ -81,9 +81,9 @@ jobs:
           appName: "supa-bass-o-matic"
           appVersion: "0.1.0"
           artifactPaths: |
-            src-tauri/target/release/bundle/**/*.deb*
-            src-tauri/target/release/bundle/**/*.rpm*
-            src-tauri/target/release/bundle/**/*.AppImage*
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*.deb*
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*.rpm*
+            src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*.AppImage*
 
       - name: List build directory
         if: success()
