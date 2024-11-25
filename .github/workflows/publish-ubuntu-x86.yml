@@ -122,11 +122,32 @@ jobs:
           usr/share/X11
           EOF
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+
+      - name: Update Cargo index
+        run: |
+          cargo update --verbose
+          cargo fetch --verbose
+
       - name: Build Tauri app
+        timeout-minutes: 30
         if: matrix.platform == 'ubuntu-22.04'
         run: |
-          cargo tauri build --verbose
-          ls -la src-tauri/target/release/bundle/
+          echo "=== Building Tauri app with verbose output ==="
+          RUST_BACKTRACE=1 cargo tauri build --verbose
+          
+          echo "=== Checking build artifacts ==="
+          if [ -d "src-tauri/target/release/bundle" ]; then
+            echo "Bundle directory contents:"
+            ls -la src-tauri/target/release/bundle/
+          else
+            echo "Bundle directory not found"
+            exit 1
+          fi
 
       - name: Build
         uses: tauri-apps/tauri-action@v0
