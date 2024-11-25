@@ -2,9 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
     "beforeBuildCommand": "npm run build",
-    "beforeDevCommand": "npm run dev",
-    "devPath": "http://localhost:5173",
-    "distDir": "../build"
+    "beforeDevCommand": "npm run dev"
   },
   "productName": "supa-bass-o-matic",
   "version": "0.1.0",
@@ -22,11 +20,11 @@
         "width": 800
       }
     ],
-    "systemTray": {
+    "withGlobalTauri": true,
+    "trayIcon": {
       "iconPath": "icons/128x128.png",
       "iconAsTemplate": true
-    },
-    "withGlobalTauri": true
+    }
   },
   "bundle": {
     "active": true,
