@@ -1,30 +1,35 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
-  "identifier": "com.supabasecommunity.supabassomatic",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
     "devPath": "http://localhost:5173",
     "distDir": "../build"
   },
+  "productName": "supa-bass-o-matic",
+  "version": "0.1.0",
+  "identifier": "com.supabasecommunity.supabassomatic",
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 600,
+        "resizable": true,
+        "title": "Supa Bass-O-Matic",
+        "width": 800
+      }
+    ],
+    "systemTray": {
+      "iconPath": "icons/128x128.png",
+      "iconAsTemplate": true
+    },
+    "withGlobalTauri": true
+  },
   "bundle": {
     "active": true,
-    "category": "DeveloperTool",
-    "copyright": "",
-    "deb": {
-      "depends": [
-        "webkit2gtk-4.0 (>= 2.36)",
-        "libwebkit2gtk-4.0-37 (>= 2.36)",
-        "libjavascriptcoregtk-4.0-18 (>= 2.36)",
-        "libgtk-3-0 (>= 3.24)",
-        "librsvg2-2 (>= 2.50)",
-        "libsoup2.4-1 (>= 2.74)",
-        "libayatana-appindicator3-1",
-        "libicu70",
-        "libc6 (>= 2.35)"
-      ]
-    },
-    "externalBin": [],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -33,39 +38,22 @@
       "icons/icon.ico",
       "icons/icon.svg"
     ],
-    "longDescription": "",
-    "macOS": {
-      "entitlements": null,
-      "exceptionDomain": "",
-      "frameworks": [],
-      "providerShortName": null,
-      "signingIdentity": null
+    "targets": ["deb", "appimage"],
+    "linux": {
+      "deb": {
+        "depends": [
+          "webkit2gtk-4.0 (>= 2.36)",
+          "libwebkit2gtk-4.0-37 (>= 2.36)",
+          "libjavascriptcoregtk-4.0-18 (>= 2.36)",
+          "libgtk-3-0 (>= 3.24)",
+          "librsvg2-2 (>= 2.50)",
+          "libsoup2.4-1 (>= 2.74)",
+          "libayatana-appindicator3-1",
+          "libicu70",
+          "libc6 (>= 2.35)"
+        ]
+      }
     },
-    "resources": [],
-    "shortDescription": "",
-    "targets": ["deb", "appimage"]
-  },
-  "package": {
-    "productName": "supa-bass-o-matic",
-    "version": "0.1.0"
-  },
-  "security": {
-    "csp": null
-  },
-  "systemTray": {
-    "iconPath": "icons/128x128.png",
-    "iconAsTemplate": true
-  },
-  "updater": {
-    "active": false
-  },
-  "windows": [
-    {
-      "fullscreen": false,
-      "height": 600,
-      "resizable": true,
-      "title": "Supa Bass-O-Matic",
-      "width": 800
-    }
-  ]
+    "category": "DeveloperTool"
+  }
 }
