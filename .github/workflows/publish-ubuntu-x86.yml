@@ -52,6 +52,12 @@ jobs:
           # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
+      - name: Install system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libsoup2.4-1
+
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -117,6 +123,12 @@ jobs:
           usr/share/locale
           usr/share/X11
           EOF
+
+      - name: Build Tauri app
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          cargo tauri build --verbose
+          ls -la src-tauri/target/release/bundle/
 
       - name: Build
         uses: tauri-apps/tauri-action@v0
