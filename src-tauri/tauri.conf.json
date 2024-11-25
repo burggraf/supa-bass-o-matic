@@ -19,12 +19,13 @@
         "depends": [
           "webkit2gtk-4.0 (>= 2.36)",
           "libwebkit2gtk-4.0-37 (>= 2.36)",
+          "libjavascriptcoregtk-4.0-18 (>= 2.36)",
           "libgtk-3-0 (>= 3.24)",
+          "librsvg2-2 (>= 2.50)",
+          "libsoup2.4-1 (>= 2.74)",
           "libappindicator3-1",
-          "librsvg2-2",
-          "libjavascriptcoregtk-4.0-18",
           "libicu70",
-          "libsoup2.4-1"
+          "libc6 (>= 2.35)"
         ]
       },
       "externalBin": [],
