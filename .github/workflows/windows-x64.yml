@@ -26,6 +26,19 @@ jobs:
         with:
           node-version: lts/*
 
+      - name: Set environment variables
+        run: |
+          "VERSION=$(node -p "require('./package.json').version")" >> $env:GITHUB_ENV
+          "NAME=$(node -p "require('./package.json').name")" >> $env:GITHUB_ENV
+          "IDENTIFIER=$(node -p "require('./package.json').identifier")" >> $env:GITHUB_ENV    
+          "DESCRIPTION=$(node -p "require('./package.json').description")" >> $env:GITHUB_ENV
+  
+      - name: Check environment variables
+        run: |
+          echo "ENV VERSION: ${{ env.VERSION }}"
+          echo "ENV NAME: ${{ env.NAME }}"
+          echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -73,15 +86,3 @@ jobs:
             Move-Item $_.FullName "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-x64.exe" -Force
           }
 
-      - name: Set environment variables
-        run: |
-          "VERSION=$(node -p "require('./package.json').version")" >> $env:GITHUB_ENV
-          "NAME=$(node -p "require('./package.json').name")" >> $env:GITHUB_ENV
-          "IDENTIFIER=$(node -p "require('./package.json').identifier")" >> $env:GITHUB_ENV    
-          "DESCRIPTION=$(node -p "require('./package.json').description")" >> $env:GITHUB_ENV
-
-      - name: Check environment variables
-        run: |
-          echo "ENV VERSION: ${{ env.VERSION }}"
-          echo "ENV NAME: ${{ env.NAME }}"
-          echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
