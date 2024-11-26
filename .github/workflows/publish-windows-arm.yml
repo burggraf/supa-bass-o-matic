@@ -18,7 +18,11 @@ jobs:
             args: "--target aarch64-pc-windows-msvc"
 
     runs-on: ${{ matrix.platform }}
-    # Add environment variables here
+    env:
+      SUPABASE_URL_ENCRYPTED: ${{ secrets.SUPABASE_URL_ENCRYPTED }}
+      SUPABASE_URL_ENCRYPTION_KEY: ${{ secrets.SUPABASE_URL_ENCRYPTION_KEY }}
+      SUPABASE_ANON_KEY_ENCRYPTED: ${{ secrets.SUPABASE_ANON_KEY_ENCRYPTED }}
+      SUPABASE_ANON_KEY_ENCRYPTION_KEY: ${{ secrets.SUPABASE_ANON_KEY_ENCRYPTION_KEY }}
 
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +31,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
+
+      - name: Set environment variables
+        run: |
+          echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+          echo "NAME=$(node -p "require('./package.json').name")" >> $GITHUB_ENV
+          echo "IDENTIFIER=$(node -p "require('./package.json').identifier")" >> $GITHUB_ENV    
+          echo "DESCRIPTION=$(node -p "require('./package.json').description")" >> $GITHUB_ENV
+
+      - name: Check environment variables
+        run: |
+          echo "ENV VERSION: ${{ env.VERSION }}"
+          echo "ENV NAME: ${{ env.NAME }}"
+          echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -49,8 +66,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: supa-bass-o-matic-0.1.0
-          releaseName: "Supa Bass-O-Matic 0.1.0"
+          tagName: ${{ env.NAME }}-${{ env.VERSION }}
+          releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
           releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
@@ -59,11 +76,10 @@ jobs:
           bundleIdentifier: com.supabasecommunity.supabassomatic
           appName: "supa-bass-o-matic"
           appVersion: "0.1.0"
-          artifactName: "supa-bass-o-matic-0.1.0-windows-arm"
+          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-windows-arm"
           artifactPaths: |
-            src-tauri/target/release/bundle/**/*.msi*
-            src-tauri/target/release/bundle/**/*.exe*
-            src-tauri/target/release/bundle/**/*.zip*
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
 
       - name: List build directory
         if: success()
