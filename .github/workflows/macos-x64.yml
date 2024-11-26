@@ -64,21 +64,11 @@ jobs:
           bundleIdentifier: com.supabasecommunity.supabassomatic
           appName: "${{ env.NAME }}"
           appVersion: "${{ env.VERSION }}"
-          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-macos-x64"
-          artifactPaths: |
-            src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.app.tar.gz
 
-      - name: Find and rename bundle file
-        id: find_bundle
+      - name: Rename artifact
         run: |
-          BUNDLE_PATH=$(find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.app.tar.gz")
-          if [ -z "$BUNDLE_PATH" ]; then
-            echo "No .app.tar.gz file found"
-            exit 1
-          fi
-          NEW_NAME="${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz"
-          mv "$BUNDLE_PATH" "$NEW_NAME"
-          echo "ASSET_PATH=$NEW_NAME" >> $GITHUB_OUTPUT
+          cd src-tauri/target/x86_64-apple-darwin/release/bundle
+          mv ${{ env.NAME }}_x64.app.tar.gz ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
 
       - name: Create Release
         id: create_release
@@ -97,6 +87,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.find_bundle.outputs.ASSET_PATH }}
+          asset_path: ./src-tauri/target/x86_64-apple-darwin/release/bundle/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
           asset_content_type: application/gzip
