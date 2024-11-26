@@ -68,22 +68,17 @@ jobs:
           artifactPaths: |
             src-tauri/target/x86_64-apple-darwin/release/bundle/**/*.app.tar.gz
 
-      - name: Locate bundle files
+      - name: Find and rename bundle file
+        id: find_bundle
         run: |
-          echo "Looking for bundle files..."
-          find src-tauri -type f -name "*.app.tar.gz" -ls
-
-      - name: Rename bundle files
-        run: |
-          find src-tauri -name "*.app.tar.gz" -exec sh -c '
-            dir=$(dirname "$1")
-            mv "$1" "${dir}/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz"
-          ' sh {} \;
-
-      - name: Verify renamed file
-        run: |
-          echo "Verifying renamed file..."
-          find src-tauri -type f -name "${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz" -ls
+          BUNDLE_PATH=$(find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.app.tar.gz")
+          if [ -z "$BUNDLE_PATH" ]; then
+            echo "No .app.tar.gz file found"
+            exit 1
+          fi
+          NEW_NAME="${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz"
+          mv "$BUNDLE_PATH" "$NEW_NAME"
+          echo "ASSET_PATH=$NEW_NAME" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release
@@ -96,31 +91,12 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Check file existence
-        id: check_file
-        uses: andstor/file-existence-action@v1
-        with:
-          files: "./src-tauri/target/x86_64-apple-darwin/release/bundle/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz"
-
       - name: Upload Release Asset
-        if: steps.check_file.outputs.files_exists == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/x86_64-apple-darwin/release/bundle/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
+          asset_path: ${{ steps.find_bundle.outputs.ASSET_PATH }}
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
           asset_content_type: application/gzip
-
-      - name: Upload Release Asset (Fallback)
-        if: steps.check_file.outputs.files_exists == 'false'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/x86_64-apple-darwin/release/bundle/*.app.tar.gz
-          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
-          asset_content_type: application/gzip
-          
