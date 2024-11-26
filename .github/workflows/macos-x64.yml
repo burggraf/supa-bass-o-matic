@@ -80,6 +80,11 @@ jobs:
             mv "$1" "${dir}/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz"
           ' sh {} \;
 
+      - name: Verify renamed file
+        run: |
+          echo "Verifying renamed file..."
+          find src-tauri -type f -name "${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz" -ls
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -91,7 +96,14 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Check file existence
+        id: check_file
+        uses: andstor/file-existence-action@v1
+        with:
+          files: "./src-tauri/target/x86_64-apple-darwin/release/bundle/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz"
+
       - name: Upload Release Asset
+        if: steps.check_file.outputs.files_exists == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,3 +112,15 @@ jobs:
           asset_path: ./src-tauri/target/x86_64-apple-darwin/release/bundle/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
           asset_content_type: application/gzip
+
+      - name: Upload Release Asset (Fallback)
+        if: steps.check_file.outputs.files_exists == 'false'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./src-tauri/target/x86_64-apple-darwin/release/bundle/*.app.tar.gz
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
+          asset_content_type: application/gzip
+          
