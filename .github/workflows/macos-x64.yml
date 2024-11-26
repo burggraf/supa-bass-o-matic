@@ -54,10 +54,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ env.NAME }}-${{ env.VERSION }}
+          tagName: ${{ env.NAME }}-v${{ env.VERSION }}
           releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
           releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
           distPath: ./build
@@ -65,27 +65,17 @@ jobs:
           appName: "${{ env.NAME }}"
           appVersion: "${{ env.VERSION }}"
 
-      - name: Locate and rename artifact
+      - name: Rename release asset
         run: |
-          find src-tauri/target -name "*.app.tar.gz" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz \;
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ env.NAME }}-${{ env.VERSION }}
-          release_name: ${{ env.NAME }} ${{ env.VERSION }}
-          draft: false
-          prerelease: false
+          cd src-tauri/target/x86_64-apple-darwin/release/bundle
+          mv *.app.tar.gz ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
+          upload_url: ${{ steps.tauri.outputs.release_upload_url }}
+          asset_path: ./src-tauri/target/x86_64-apple-darwin/release/bundle/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
           asset_content_type: application/gzip
