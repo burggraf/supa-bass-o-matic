@@ -56,12 +56,6 @@ jobs:
       - name: Build web assets
         run: npm run build
 
-      - name: Rename bundle files
-        run: |
-          cd src-tauri/target/release/bundle
-          # Rename .tar.gz file
-          find . -name "*.app.tar.gz" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-macos-arm.tar.gz"' _ {} \;
-
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -78,5 +72,10 @@ jobs:
           appVersion: "${{ env.VERSION }}"
           artifactName: "${{ env.NAME }}-${{ env.VERSION }}-macos-arm"
           artifactPaths: |
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.app
+            src-tauri/target/release/bundle/**/*.app.tar.gz
+
+      - name: Rename bundle files
+        run: |
+          cd src-tauri/target/release/bundle
+          # Rename .tar.gz file
+          find . -name "*.app.tar.gz" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-macos-arm.tar.gz"' _ {} \;

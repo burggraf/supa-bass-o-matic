@@ -41,6 +41,25 @@ jobs:
       - name: Build web assets
         run: npm run build
 
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ env.NAME }}-${{ env.VERSION }}
+          releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+          distPath: ./build
+          bundleIdentifier: com.supabasecommunity.supabassomatic
+          appName: "${{ env.NAME }}"
+          appVersion: "${{ env.VERSION }}"
+          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-windows-x64"
+          artifactPaths: |
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+
       - name: Rename bundle files
         shell: pwsh
         run: |
@@ -66,22 +85,3 @@ jobs:
           echo "ENV VERSION: ${{ env.VERSION }}"
           echo "ENV NAME: ${{ env.NAME }}"
           echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
-
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ env.NAME }}-${{ env.VERSION }}
-          releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
-          distPath: ./build
-          bundleIdentifier: com.supabasecommunity.supabassomatic
-          appName: "${{ env.NAME }}"
-          appVersion: "${{ env.VERSION }}"
-          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-windows-x64"
-          artifactPaths: |
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.exe
