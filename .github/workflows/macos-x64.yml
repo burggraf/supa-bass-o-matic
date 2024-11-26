@@ -68,7 +68,9 @@ jobs:
       - name: Rename artifact
         run: |
           cd src-tauri/target/x86_64-apple-darwin/release/bundle
-          mv ${{ env.NAME }}_x64.app.tar.gz ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
+          for file in *.app.tar.gz; do
+            mv "$file" "${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz"
+          done
 
       - name: Create Release
         id: create_release
