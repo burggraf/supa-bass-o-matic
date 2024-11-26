@@ -78,12 +78,16 @@ jobs:
             src-tauri/target/release/bundle/**/*.deb
             src-tauri/target/release/bundle/**/*.AppImage
 
+      - name: Locate bundle files
+        run: |
+          echo "Looking for bundle files..."
+          find src-tauri -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.rpm" \) -ls
+
       - name: Rename bundle files
         run: |
-          cd src-tauri/target/release/bundle
           # Rename .deb file
-          find . -name "*.deb" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb"' _ {} \;
+          find src-tauri -name "*.deb" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb"' _ {} \;
           # Rename .AppImage file
-          find . -name "*.AppImage" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage"' _ {} \;
+          find src-tauri -name "*.AppImage" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage"' _ {} \;
           # Rename .rpm file
-          find . -name "*.rpm" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.rpm"' _ {} \;
+          find src-tauri -name "*.rpm" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.rpm"' _ {} \;

@@ -74,8 +74,12 @@ jobs:
           artifactPaths: |
             src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.app.tar.gz
 
+      - name: Locate bundle files
+        run: |
+          echo "Looking for bundle files..."
+          find src-tauri -type f -name "*.app.tar.gz" -ls
+
       - name: Rename bundle files
         run: |
-          cd src-tauri/target/aarch64-apple-darwin/release/bundle
           # Rename .tar.gz file
-          find . -name "*.app.tar.gz" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-macos-arm.tar.gz"' _ {} \;
+          find src-tauri -name "*.app.tar.gz" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-macos-arm.tar.gz"' _ {} \;
