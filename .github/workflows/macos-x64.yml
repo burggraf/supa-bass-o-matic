@@ -5,8 +5,6 @@ on:
     branches:
       - release
 
-# This workflow will trigger on each push to the `release` branch to create or update a GitHub release, build your app, and upload the artifacts to the release.
-
 jobs:
   publish-tauri:
     permissions:
@@ -15,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest" # for Intel based macs.
+          - platform: "macos-latest"
             args: "--target x86_64-apple-darwin"
 
     runs-on: ${{ matrix.platform }}
@@ -44,16 +42,7 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-        # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
-        # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Install npm dependencies
         run: npm install
@@ -88,6 +77,15 @@ jobs:
         run: |
           find src-tauri -name "*.app.tar.gz" -exec sh -c '
             dir=$(dirname "$1")
-            mv "$1" "${dir}/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.tar.gz"
+            mv "$1" "${dir}/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz"
           ' sh {} \;
 
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./src-tauri/target/x86_64-apple-darwin/release/bundle/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
+          asset_content_type: application/gzip
