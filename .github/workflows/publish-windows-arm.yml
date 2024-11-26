@@ -18,11 +18,6 @@ jobs:
             args: "--target aarch64-pc-windows-msvc"
 
     runs-on: ${{ matrix.platform }}
-    env:
-      SUPABASE_URL_ENCRYPTED: ${{ secrets.SUPABASE_URL_ENCRYPTED }}
-      SUPABASE_URL_ENCRYPTION_KEY: ${{ secrets.SUPABASE_URL_ENCRYPTION_KEY }}
-      SUPABASE_ANON_KEY_ENCRYPTED: ${{ secrets.SUPABASE_ANON_KEY_ENCRYPTED }}
-      SUPABASE_ANON_KEY_ENCRYPTION_KEY: ${{ secrets.SUPABASE_ANON_KEY_ENCRYPTION_KEY }}
 
     steps:
       - uses: actions/checkout@v4
@@ -74,8 +69,8 @@ jobs:
           args: ${{ matrix.args }}
           distPath: ./build
           bundleIdentifier: com.supabasecommunity.supabassomatic
-          appName: "supa-bass-o-matic"
-          appVersion: "0.1.0"
+          appName: "${{ env.NAME }}"
+          appVersion: "${{ env.VERSION }}"
           artifactName: "${{ env.NAME }}-${{ env.VERSION }}-windows-arm"
           artifactPaths: |
             src-tauri/target/release/bundle/**/*.msi
