@@ -74,15 +74,27 @@ jobs:
           artifactPaths: |
             src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.app.tar.gz
 
-      - name: Locate bundle files
+      - name: Locate and rename artifact
         run: |
-          echo "Looking for bundle files..."
-          find src-tauri -type f -name "*.app.tar.gz" -ls
+          find src-tauri/target -name "*.app.tar.gz" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-arm.app.tar.gz \;
 
-      - name: Rename bundle files
-        run: |
-          find src-tauri -name "*.app.tar.gz" -exec sh -c '
-            dir=$(dirname "$1")
-            mv "$1" "${dir}/${{ env.NAME }}-${{ env.VERSION }}-macos-arm.tar.gz"
-          ' sh {} \;
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.NAME }}-${{ env.VERSION }}
+          release_name: ${{ env.NAME }} ${{ env.VERSION }}
+          draft: false
+          prerelease: false
 
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-macos-arm.app.tar.gz
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-arm.app.tar.gz
+          asset_content_type: application/gzip

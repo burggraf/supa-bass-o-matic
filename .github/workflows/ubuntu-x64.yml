@@ -78,19 +78,27 @@ jobs:
             src-tauri/target/release/bundle/**/*.deb
             src-tauri/target/release/bundle/**/*.AppImage
 
-      - name: Locate bundle files
+      - name: Locate and rename artifact
         run: |
-          echo "Looking for bundle files..."
-          find src-tauri -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.rpm" \) -ls
+          find src-tauri/target -name "*.deb" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb \;
 
-      - name: Rename bundle files
-        run: |
-          find src-tauri -name "*.deb" -exec sh -c '
-            dir=$(dirname "$1")
-            mv "$1" "${dir}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb"
-          ' sh {} \;
-          find src-tauri -name "*.AppImage" -exec sh -c '
-            dir=$(dirname "$1")
-            mv "$1" "${dir}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage"
-          ' sh {} \;
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.NAME }}-${{ env.VERSION }}
+          release_name: ${{ env.NAME }} ${{ env.VERSION }}
+          draft: false
+          prerelease: false
 
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
+          asset_content_type: application/vnd.debian.binary-package
