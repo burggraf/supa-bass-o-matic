@@ -196,6 +196,8 @@ jobs:
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ env.NAME }}-${{ env.VERSION }}
           releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
