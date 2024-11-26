@@ -54,7 +54,7 @@ jobs:
           echo "ENV NAME: ${{ env.NAME }}"
           echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v0.5.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
