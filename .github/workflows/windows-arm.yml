@@ -22,11 +22,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
       - name: Set environment variables
         run: |
           "VERSION=$(node -p "require('./package.json').version")" >> $env:GITHUB_ENV
@@ -39,6 +34,11 @@ jobs:
           echo "ENV VERSION: ${{ env.VERSION }}"
           echo "ENV NAME: ${{ env.NAME }}"
           echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -73,13 +73,13 @@ jobs:
           appVersion: "${{ env.VERSION }}"
           artifactName: "${{ env.NAME }}-${{ env.VERSION }}-windows-arm"
           artifactPaths: |
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/**/*.msi
+            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/**/*.exe
 
       - name: Rename bundle files
         shell: pwsh
         run: |
-          cd src-tauri/target/release/bundle
+          cd src-tauri/target/aarch64-pc-windows-msvc/release/bundle
           # Rename .msi file
           Get-ChildItem -Recurse -Filter "*.msi" | ForEach-Object {
             Move-Item $_.FullName "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi" -Force

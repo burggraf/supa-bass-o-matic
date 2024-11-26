@@ -211,13 +211,13 @@ jobs:
           appVersion: "${{ env.VERSION }}"
           artifactName: "${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm"
           artifactPaths: |
-            src-tauri/target/release/bundle/**/*.deb*
-            src-tauri/target/release/bundle/**/*.rpm*
-            src-tauri/target/release/bundle/**/*.AppImage*
+            src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/**/*.deb*
+            src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/**/*.rpm*
+            src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/**/*.AppImage*
 
       - name: Rename bundle files
         run: |
-          cd src-tauri/target/release/bundle
+          cd src-tauri/target/aarch64-unknown-linux-gnu/release/bundle
           # Rename .deb file
           find . -name "*.deb" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb"' _ {} \;
           # Rename .AppImage file
