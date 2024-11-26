@@ -226,12 +226,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v0.1.0
-          releaseName: "App v0.1.0"
+          tagName: supa-bass-o-matic-0.1.0
+          releaseName: "Supa Bass-O-Matic 0.1.0"
           releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
-          args: --target aarch64-unknown-linux-gnu
+          args: ${{ matrix.args }}
+          artifactName: "supa-bass-o-matic-0.1.0-ubuntu-arm"
           distPath: ./build
           bundleIdentifier: com.supabasecommunity.supabassomatic
           appName: "supa-bass-o-matic"
