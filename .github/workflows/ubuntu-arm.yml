@@ -222,5 +222,12 @@ jobs:
 
       - name: Rename bundle files
         run: |
-          # Rename .deb file
-          mv src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/deb/supa-bass-o-matic-linux_0.1.2_arm64.deb src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/deb/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb
+          find src-tauri -name "*.deb" -exec sh -c '
+            dir=$(dirname "$1")
+            mv "$1" "${dir}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb"
+          ' sh {} \;
+          find src-tauri -name "*.AppImage" -exec sh -c '
+            dir=$(dirname "$1")
+            mv "$1" "${dir}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.AppImage"
+          ' sh {} \;
+

@@ -84,11 +84,12 @@ jobs:
       - name: Rename bundle files
         shell: pwsh
         run: |
-          # Rename .msi file
           Get-ChildItem -Path src-tauri -Recurse -Filter "*.msi" | ForEach-Object {
-            Move-Item D:\a\supa-bass-o-matic\supa-bass-o-matic\src-tauri\target\release\bundle\msi\supa-bass-o-matic_0.1.2_x64_en-US.msi "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-x64.msi" -Force
+            $newName = "${{ env.NAME }}-${{ env.VERSION }}-windows-x64.msi"
+            Move-Item $_.FullName (Join-Path $_.Directory.FullName $newName) -Force
           }
-          # Rename .exe file
           Get-ChildItem -Path src-tauri -Recurse -Filter "*setup.exe" | ForEach-Object {
-            Move-Item D:\a\supa-bass-o-matic\supa-bass-o-matic\src-tauri\target\release\bundle\nsis\supa-bass-o-matic_0.1.2_x64-setup.exe "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-x64.exe" -Force
+            $newName = "${{ env.NAME }}-${{ env.VERSION }}-windows-x64.exe"
+            Move-Item $_.FullName (Join-Path $_.Directory.FullName $newName) -Force
           }
+

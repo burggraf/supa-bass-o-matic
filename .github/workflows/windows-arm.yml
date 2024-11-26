@@ -76,22 +76,22 @@ jobs:
             src-tauri/target/aarch64-pc-windows-msvc/release/bundle/**/*.msi
             src-tauri/target/aarch64-pc-windows-msvc/release/bundle/**/*.exe
 
+      - name: Rename bundle files
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path src-tauri -Recurse -Filter "*.msi" | ForEach-Object {
+            $newName = "${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi"
+            Move-Item $_.FullName (Join-Path $_.Directory.FullName $newName) -Force
+          }
+          Get-ChildItem -Path src-tauri -Recurse -Filter "*setup.exe" | ForEach-Object {
+            $newName = "${{ env.NAME }}-${{ env.VERSION }}-windows-arm.exe"
+            Move-Item $_.FullName (Join-Path $_.Directory.FullName $newName) -Force
+          }
+
       - name: Locate bundle files
         shell: pwsh
         run: |
           Write-Host "Looking for bundle files..."
           Get-ChildItem -Path src-tauri -Recurse -Include *.msi,*.exe | ForEach-Object {
             Write-Host $_.FullName
-          }
-
-      - name: Rename bundle files
-        shell: pwsh
-        run: |
-          # Rename .msi file
-          Get-ChildItem -Path src-tauri -Recurse -Filter "*.msi" | ForEach-Object {
-            Move-Item D:\a\supa-bass-o-matic\supa-bass-o-matic\src-tauri\target\aarch64-pc-windows-msvc\release\bundle\msi\supa-bass-o-matic_0.1.2_arm64_en-US.msi "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi" -Force
-          }
-          # Rename .exe file
-          Get-ChildItem -Path src-tauri -Recurse -Filter "*setup.exe" | ForEach-Object {
-            Move-Item D:\a\supa-bass-o-matic\supa-bass-o-matic\src-tauri\target\aarch64-pc-windows-msvc\release\bundle\nsis\supa-bass-o-matic_0.1.2_arm64-setup.exe "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-arm.exe" -Force
           }
