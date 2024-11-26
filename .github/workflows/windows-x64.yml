@@ -86,9 +86,9 @@ jobs:
         run: |
           # Rename .msi file
           Get-ChildItem -Path src-tauri -Recurse -Filter "*.msi" | ForEach-Object {
-            Move-Item $_.FullName "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-x64.msi" -Force
+            Move-Item D:\a\supa-bass-o-matic\supa-bass-o-matic\src-tauri\target\release\bundle\msi\supa-bass-o-matic_0.1.2_x64_en-US.msi "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-x64.msi" -Force
           }
           # Rename .exe file
           Get-ChildItem -Path src-tauri -Recurse -Filter "*setup.exe" | ForEach-Object {
-            Move-Item $_.FullName "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-x64.exe" -Force
+            Move-Item D:\a\supa-bass-o-matic\supa-bass-o-matic\src-tauri\target\release\bundle\nsis\supa-bass-o-matic_0.1.2_x64-setup.exe "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-x64.exe" -Force
           }

@@ -86,8 +86,11 @@ jobs:
       - name: Rename bundle files
         run: |
           # Rename .deb file
-          find src-tauri -name "*.deb" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb"' _ {} \;
+          mv src-tauri/target/release/bundle/deb/supa-bass-o-matic_0.1.2_amd64.deb src-tauri/target/release/bundle/deb/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
+          #find src-tauri -name "*.deb" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb"' _ {} \;
           # Rename .AppImage file
-          find src-tauri -name "*.AppImage" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage"' _ {} \;
+          mv src-tauri/target/release/bundle/appimage/supa-bass-o-matic_0.1.2_amd64.AppImage src-tauri/target/release/bundle/appimage/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage
+          #find src-tauri -name "*.AppImage" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage"' _ {} \;
           # Rename .rpm file
-          find src-tauri -name "*.rpm" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.rpm"' _ {} \;
+          mv src-tauri/target/release/bundle/rpm/supa-bass-o-matic-0.1.2-1.x86_64.rpm src-tauri/target/release/bundle/rpm/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.rpm
+          #find src-tauri -name "*.rpm" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.rpm"' _ {} \;

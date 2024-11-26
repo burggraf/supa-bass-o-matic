@@ -223,8 +223,11 @@ jobs:
       - name: Rename bundle files
         run: |
           # Rename .deb file
-          find src-tauri -name "*.deb" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb"' _ {} \;
+          mv src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/deb/supa-bass-o-matic-linux_0.1.2_arm64.deb src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/deb/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb
+          #find src-tauri -name "*.deb" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb"' _ {} \;
           # Rename .AppImage file
-          find src-tauri -name "*.AppImage" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.AppImage"' _ {} \;
+          mv src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/deb/supa-bass-o-matic-linux_0.1.2_arm64.AppImage src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/deb/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.AppImage
+          #find src-tauri -name "*.AppImage" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.AppImage"' _ {} \;
           # Rename .rpm file
-          find src-tauri -name "*.rpm" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.rpm"' _ {} \;
+          mv src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/deb/supa-bass-o-matic-linux_0.1.2_arm64.rpm src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/deb/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.rpm
+          #find src-tauri -name "*.rpm" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.rpm"' _ {} \;

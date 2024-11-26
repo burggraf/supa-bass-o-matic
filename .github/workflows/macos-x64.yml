@@ -87,4 +87,5 @@ jobs:
       - name: Rename bundle files
         run: |
           # Rename .tar.gz file
-          find src-tauri -name "*.app.tar.gz" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.tar.gz"' _ {} \;
+          mv src-tauri/target/x86_64-apple-darwin/release/bundle/macos/supa-bass-o-matic.app.tar.gz src-tauri/target/x86_64-apple-darwin/release/bundle/macos/${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
+          #find src-tauri -name "*.app.tar.gz" -exec bash -c 'mv "$1" "${{ env.NAME }}-${{ env.VERSION }}-macos-x64.tar.gz"' _ {} \;
