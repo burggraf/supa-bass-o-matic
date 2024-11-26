@@ -59,6 +59,16 @@ jobs:
       - name: Build web assets
         run: npm run build
 
+      - name: Rename bundle files
+        run: |
+          cd src-tauri/target/release/bundle
+          # Rename .deb file
+          find . -name "*.deb" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb"' _ {} \;
+          # Rename .AppImage file
+          find . -name "*.AppImage" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage"' _ {} \;
+          # Rename .rpm file
+          find . -name "*.rpm" -exec bash -c 'mv "$1" "${1%/*}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.rpm"' _ {} \;
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

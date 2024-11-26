@@ -57,6 +57,19 @@ jobs:
       - name: Build web assets
         run: npm run build
 
+      - name: Rename bundle files
+        shell: pwsh
+        run: |
+          cd src-tauri/target/release/bundle
+          # Rename .msi file
+          Get-ChildItem -Recurse -Filter "*.msi" | ForEach-Object {
+            Move-Item $_.FullName "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi" -Force
+          }
+          # Rename .exe file
+          Get-ChildItem -Recurse -Filter "*setup.exe" | ForEach-Object {
+            Move-Item $_.FullName "$($_.Directory.FullName)\${{ env.NAME }}-${{ env.VERSION }}-windows-arm.exe" -Force
+          }
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
