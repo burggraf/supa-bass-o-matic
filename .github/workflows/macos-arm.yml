@@ -55,6 +55,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tagName: v${{ env.VERSION }}
+          releaseName: "Version ${{ env.VERSION }}"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false
           args: ${{ matrix.args }}
           distPath: ./build
           bundleIdentifier: ${{ env.IDENTIFIER }}
@@ -63,22 +68,23 @@ jobs:
 
       - name: Locate and rename artifact
         run: |
-          echo "Debug: Listing all files in target directory"
-          ls -R src-tauri/target || true
-          
-          echo "Debug: Searching for any DMG files"
-          find . -name "*.dmg" -type f || true
-          
-          # Try to find and move the DMG file, with error handling
-          DMG_FILE=$(find . -name "*.dmg" -type f | head -n 1)
-          if [ -n "$DMG_FILE" ]; then
-            echo "Found DMG file at: $DMG_FILE"
-            mv "$DMG_FILE" "./${{ env.NAME }}-${{ env.VERSION }}-macos-arm.dmg"
-            echo "Successfully renamed DMG file"
-          else
-            echo "Error: No DMG file found"
-            exit 1
+          # Look in the architecture-specific bundle directory
+          DMG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
+          if [ -d "$DMG_PATH" ]; then
+            echo "Found DMG directory at: $DMG_PATH"
+            DMG_FILE=$(find "$DMG_PATH" -name "*.dmg" -type f | head -n 1)
+            if [ -n "$DMG_FILE" ]; then
+              echo "Found DMG file at: $DMG_FILE"
+              mv "$DMG_FILE" "./${{ env.NAME }}-${{ env.VERSION }}-macos-arm.dmg"
+              echo "Successfully renamed DMG file"
+              exit 0
+            fi
           fi
+          
+          echo "Error: No DMG file found"
+          echo "Contents of target directory:"
+          ls -R src-tauri/target/aarch64-apple-darwin/release/bundle || true
+          exit 1
 
       - name: Get Release
         id: get_release
