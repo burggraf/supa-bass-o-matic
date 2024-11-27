@@ -106,8 +106,8 @@ jobs:
         run: |
           echo "ENV VERSION: ${{ env.VERSION }}"
           echo "ENV NAME: ${{ env.NAME }}"
-          echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}
-  
+          echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
+
       - name: Configure ARM64 build
         if: matrix.platform == 'ubuntu-22.04'
         run: |
