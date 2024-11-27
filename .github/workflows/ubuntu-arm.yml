@@ -213,7 +213,6 @@ jobs:
       - name: Locate and rename artifact
         run: |
           find src-tauri/target -name "*.deb" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb \;
-          find src-tauri/target -name "*.AppImage" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.AppImage \;
 
       - name: Get Release URL
         id: get_release
@@ -225,7 +224,7 @@ jobs:
             "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/${{ env.NAME }}-${{ env.VERSION }}")
           echo "UPLOAD_URL=$(echo $response | jq -r .upload_url)" >> $GITHUB_ENV
 
-      - name: Upload Release Assets
+      - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -234,13 +233,3 @@ jobs:
           asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb
           asset_content_type: application/vnd.debian.binary-package
-
-      - name: Upload AppImage Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.AppImage
-          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.AppImage
-          asset_content_type: application/x-executable
