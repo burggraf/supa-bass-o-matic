@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -42,13 +42,7 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Install npm dependencies
         run: npm install
@@ -67,61 +61,32 @@ jobs:
           prerelease: true
           args: ${{ matrix.args }}
           distPath: ./build
-          bundleIdentifier: com.supabasecommunity.supabassomatic
+          bundleIdentifier: ${{ env.IDENTIFIER }}
           appName: "${{ env.NAME }}"
           appVersion: "${{ env.VERSION }}"
-          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-macos-arm"
-          artifactPaths: |
-            src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.app.tar.gz
 
       - name: Locate and rename artifact
         run: |
           find src-tauri/target -name "*.app.tar.gz" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-arm.app.tar.gz \;
 
-      - name: Get Release URL
-        id: get_release
-        run: |
-          # Wait for a short time to ensure the release is available
-          sleep 30
-          
-          # Try to get the release multiple times
-          for i in {1..3}; do
-            response=$(curl -L \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/${{ env.NAME }}-${{ env.VERSION }}")
-            
-            # Debug output
-            echo "Response from GitHub API:"
-            echo "$response"
-            
-            # Extract and clean the upload URL
-            upload_url=$(echo "$response" | jq -r .upload_url | sed 's/{?name,label}//')
-            
-            # Check if we got a valid upload_url
-            if [ "$upload_url" != "null" ] && [ -n "$upload_url" ]; then
-              echo "upload_url=$upload_url"
-              echo "UPLOAD_URL=$upload_url" >> $GITHUB_ENV
-              echo "UPLOAD_URL=$upload_url" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-            
-            echo "Attempt $i: Failed to get valid upload URL, waiting before retry..."
-            sleep 10
-          done
-          
-          echo "Failed to get valid upload URL after retries"
-          exit 1
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.NAME }}-${{ env.VERSION }}
+          release_name: ${{ env.NAME }} ${{ env.VERSION }}
+          draft: false
+          prerelease: false
 
       - name: Upload Release Asset
-        run: |
-          filename="supa-bass-o-matic-${{ env.VERSION }}-macos-arm.app.tar.gz"
-          curl -L \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            -H "Content-Type: application/gzip" \
-            --data-binary "@$filename" \
-            "${{ env.UPLOAD_URL }}?name=$filename"
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-macos-arm.app.tar.gz
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-arm.app.tar.gz
+          asset_content_type: application/gzip
+

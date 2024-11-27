@@ -61,7 +61,7 @@ jobs:
           prerelease: true
           args: ${{ matrix.args }}
           distPath: ./build
-          bundleIdentifier: com.supabasecommunity.supabassomatic
+          bundleIdentifier: ${{ env.IDENTIFIER }}
           appName: "${{ env.NAME }}"
           appVersion: "${{ env.VERSION }}"
 

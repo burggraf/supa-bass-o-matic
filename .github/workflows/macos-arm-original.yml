@@ -1,11 +1,9 @@
-name: "publish-ubuntu-x86"
+name: "publish-macos-arm"
 
 on:
   push:
     branches:
       - release
-
-# This workflow will trigger on each push to the `release` branch to create or update a GitHub release, build your app, and upload the artifacts to the release.
 
 jobs:
   publish-tauri:
@@ -15,15 +13,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "ubuntu-22.04" # for Tauri v1 you could replace this with ubuntu-20.04.
-            args: ""
+          - platform: "macos-latest" # for Arm based macs (M1 and above).
+            args: "--target aarch64-apple-darwin"
 
     runs-on: ${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: setup node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -44,7 +42,6 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: install dependencies (ubuntu only)
@@ -73,32 +70,58 @@ jobs:
           bundleIdentifier: ${{ env.IDENTIFIER }}
           appName: "${{ env.NAME }}"
           appVersion: "${{ env.VERSION }}"
-          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64"
+          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-macos-arm"
           artifactPaths: |
-            src-tauri/target/release/bundle/**/*.deb
-            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.app.tar.gz
 
       - name: Locate and rename artifact
         run: |
-          find src-tauri/target -name "*.deb" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb \;
-          find src-tauri/target -name "*.AppImage" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage \;
+          find src-tauri/target -name "*.app.tar.gz" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-arm.app.tar.gz \;
 
       - name: Get Release URL
         id: get_release
         run: |
-          response=$(curl -L \
+          # Wait for a short time to ensure the release is available
+          sleep 30
+          
+          # Try to get the release multiple times
+          for i in {1..3}; do
+            response=$(curl -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/${{ env.NAME }}-${{ env.VERSION }}")
+            
+            # Debug output
+            echo "Response from GitHub API:"
+            echo "$response"
+            
+            # Extract and clean the upload URL
+            upload_url=$(echo "$response" | jq -r .upload_url | sed 's/{?name,label}//')
+            
+            # Check if we got a valid upload_url
+            if [ "$upload_url" != "null" ] && [ -n "$upload_url" ]; then
+              echo "upload_url=$upload_url"
+              echo "UPLOAD_URL=$upload_url" >> $GITHUB_ENV
+              echo "UPLOAD_URL=$upload_url" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            echo "Attempt $i: Failed to get valid upload URL, waiting before retry..."
+            sleep 10
+          done
+          
+          echo "Failed to get valid upload URL after retries"
+          exit 1
+
+      - name: Upload Release Asset
+        run: |
+          filename="${{ env.NAME }}-${{ env.VERSION }}-macos-arm.app.tar.gz"
+          curl -L \
+            -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/${{ env.NAME }}-${{ env.VERSION }}")
-          echo "UPLOAD_URL=$(echo $response | jq -r .upload_url)" >> $GITHUB_ENV
-
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
-          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
-          asset_content_type: application/vnd.debian.binary-package
+            -H "Content-Type: application/gzip" \
+            --data-binary "@$filename" \
+            "${{ env.UPLOAD_URL }}?name=$filename"
