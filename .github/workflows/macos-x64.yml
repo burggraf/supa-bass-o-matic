@@ -50,16 +50,17 @@ jobs:
       - name: Build web assets
         run: npm run build
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ env.NAME }}-${{ env.VERSION }}
-          releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
+          tagName: v${{ env.VERSION }}
+          releaseName: "Version ${{ env.VERSION }}"
           releaseBody: "See the assets to download this version and install."
           releaseDraft: true
-          prerelease: true
-          args: ${{ matrix.args }}
+          prerelease: false
+          args: --target x86_64-apple-darwin
           distPath: ./build
           bundleIdentifier: ${{ env.IDENTIFIER }}
           appName: "${{ env.NAME }}"
@@ -67,20 +68,23 @@ jobs:
 
       - name: Locate and rename artifact
         run: |
-          echo "Looking for DMG files in src-tauri/target..."
-          find src-tauri/target -name "*.dmg" -type f
-          echo "Looking for DMG files in target/release/bundle/dmg..."
-          find target/release/bundle/dmg -name "*.dmg" -type f || true
-          echo "Looking for DMG files in target/release/bundle/macos..."
-          find target/release/bundle/macos -name "*.dmg" -type f || true
-          # First try the new location
-          if [ -d "target/release/bundle/dmg" ]; then
-            find target/release/bundle/dmg -name "*.dmg" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg \;
-          else
-            # Fall back to the src-tauri location
-            find src-tauri/target -name "*.dmg" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg \;
+          echo "Current directory contents:"
+          ls -la
+          echo "\nLooking in src-tauri/target/x86_64-apple-darwin/release/bundle/dmg..."
+          find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" -type f || true
+          echo "\nLooking in src-tauri/target/release/bundle/dmg..."
+          find src-tauri/target/release/bundle/dmg -name "*.dmg" -type f || true
+          echo "\nSearching for all DMG files..."
+          find . -name "*.dmg" -type f
+          
+          # Try to locate and move the DMG file from the x64-specific path
+          if [ -d "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg" ]; then
+            find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg \;
+          elif [ -d "src-tauri/target/release/bundle/dmg" ]; then
+            find src-tauri/target/release/bundle/dmg -name "*.dmg" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg \;
           fi
-          echo "Final file check:"
+
+          echo "\nFinal file check:"
           ls -la ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg || true
 
       - name: Get Release
