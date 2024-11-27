@@ -202,8 +202,8 @@ jobs:
           tagName: ${{ env.NAME }}-${{ env.VERSION }}
           releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
           releaseBody: "See the assets to download this version and install."
-          releaseDraft: false
-          prerelease: false
+          releaseDraft: true
+          prerelease: true
           args: ${{ matrix.args }}
           distPath: ./build
           bundleIdentifier: com.supabasecommunity.supabassomatic
