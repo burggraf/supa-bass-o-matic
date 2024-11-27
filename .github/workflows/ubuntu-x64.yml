@@ -66,7 +66,7 @@ jobs:
           tagName: ${{ env.NAME }}-${{ env.VERSION }}
           releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
           releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
           distPath: ./build
@@ -102,13 +102,3 @@ jobs:
           asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
           asset_content_type: application/vnd.debian.binary-package
-
-      - name: Upload AppImage Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage
-          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage
-          asset_content_type: application/x-executable

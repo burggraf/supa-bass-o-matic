@@ -57,7 +57,7 @@ jobs:
           tagName: ${{ env.NAME }}-${{ env.VERSION }}
           releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
           releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
           distPath: ./build
@@ -90,4 +90,3 @@ jobs:
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
           asset_content_type: application/gzip
 
-          
