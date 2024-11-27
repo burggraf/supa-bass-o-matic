@@ -71,28 +71,27 @@ jobs:
           bundleIdentifier: com.supabasecommunity.supabassomatic
           appName: "${{ env.NAME }}"
           appVersion: "${{ env.VERSION }}"
+          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-windows-arm"
+          artifactPaths: |
+            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/**/*.msi
+            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/**/*.exe
 
-      - name: Locate and rename artifact
+      - name: Rename bundle files
         shell: pwsh
         run: |
           Get-ChildItem -Path src-tauri -Recurse -Filter "*.msi" | ForEach-Object {
-            Move-Item $_.FullName "${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi" -Force
+            $newName = "${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi"
+            Move-Item $_.FullName (Join-Path $_.Directory.FullName $newName) -Force
+          }
+          Get-ChildItem -Path src-tauri -Recurse -Filter "*setup.exe" | ForEach-Object {
+            $newName = "${{ env.NAME }}-${{ env.VERSION }}-windows-arm.exe"
+            Move-Item $_.FullName (Join-Path $_.Directory.FullName $newName) -Force
           }
 
-      - name: Get Release
-        id: get_release
-        uses: bruceadams/get-release@v1.3.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ env.NAME }}-${{ env.VERSION }}
-
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release.outputs.upload_url }}
-          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi
-          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi
-          asset_content_type: application/x-msi
+      - name: Locate bundle files
+        shell: pwsh
+        run: |
+          Write-Host "Looking for bundle files..."
+          Get-ChildItem -Path src-tauri -Recurse -Include *.msi,*.exe | ForEach-Object {
+            Write-Host $_.FullName
+          }
