@@ -77,23 +77,22 @@ jobs:
         run: |
           Get-ChildItem src-tauri\target -Recurse -Filter "*.msi" | ForEach-Object { Move-Item $_.FullName "${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi" }
 
-      - name: Create Release
-        id: create_release
+      - name: Get Release
+        id: get_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.NAME }}-${{ env.VERSION }}-windows-arm
-          name: ${{ env.NAME }} v${{ env.VERSION }} (Windows ARM)
+          tag_name: v${{ env.VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
-          token: ${{ secrets.GITHUB_TOKEN }}
-          generate_release_notes: true
+          fail_on_unmatched_files: false
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi
           asset_content_type: application/x-msi

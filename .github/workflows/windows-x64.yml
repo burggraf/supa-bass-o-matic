@@ -78,12 +78,22 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.NAME }}-${{ env.VERSION }}
-          name: ${{ env.NAME }} v${{ env.VERSION }}
+          tag_name: v${{ env.VERSION }}
+          name: Version ${{ env.VERSION }}
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
           generate_release_notes: true
+          body: |
+            ## Supa Bass-O-Matic v${{ env.VERSION }}
+
+            ### Downloads
+            - Windows (x64): [supa-bass-o-matic-${{ env.VERSION }}-windows-x64.msi](supa-bass-o-matic-${{ env.VERSION }}-windows-x64.msi)
+            - Windows (ARM): [supa-bass-o-matic-${{ env.VERSION }}-windows-arm.msi](supa-bass-o-matic-${{ env.VERSION }}-windows-arm.msi)
+            - Ubuntu (x64): [supa-bass-o-matic-${{ env.VERSION }}-ubuntu-x64.deb](supa-bass-o-matic-${{ env.VERSION }}-ubuntu-x64.deb)
+            - Ubuntu (ARM): [supa-bass-o-matic-${{ env.VERSION }}-ubuntu-arm.deb](supa-bass-o-matic-${{ env.VERSION }}-ubuntu-arm.deb)
+            - macOS (x64): [supa-bass-o-matic-${{ env.VERSION }}-macos-x64.dmg](supa-bass-o-matic-${{ env.VERSION }}-macos-x64.dmg)
+            - macOS (ARM): [supa-bass-o-matic-${{ env.VERSION }}-macos-arm.dmg](supa-bass-o-matic-${{ env.VERSION }}-macos-arm.dmg)
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
