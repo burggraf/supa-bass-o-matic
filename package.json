@@ -1,6 +1,6 @@
 {
 	"name": "supa-bass-o-matic",
-	"version": "0.2.3",
+	"version": "0.2.4",
 	"identifier": "com.supabasecommunity.supabassomatic",
 	"description": "Utilities for Postgres and Supabase",
 	"type": "module",
