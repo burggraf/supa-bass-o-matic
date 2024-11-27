@@ -88,12 +88,7 @@ jobs:
             ## Supa Bass-O-Matic v${{ env.VERSION }}
 
             ### Downloads
-            - Windows (x64): [supa-bass-o-matic-${{ env.VERSION }}-windows-x64.msi](supa-bass-o-matic-${{ env.VERSION }}-windows-x64.msi)
-            - Windows (ARM): [supa-bass-o-matic-${{ env.VERSION }}-windows-arm.msi](supa-bass-o-matic-${{ env.VERSION }}-windows-arm.msi)
-            - Ubuntu (x64): [supa-bass-o-matic-${{ env.VERSION }}-ubuntu-x64.deb](supa-bass-o-matic-${{ env.VERSION }}-ubuntu-x64.deb)
-            - Ubuntu (ARM): [supa-bass-o-matic-${{ env.VERSION }}-ubuntu-arm.deb](supa-bass-o-matic-${{ env.VERSION }}-ubuntu-arm.deb)
-            - macOS (x64): [supa-bass-o-matic-${{ env.VERSION }}-macos-x64.dmg](supa-bass-o-matic-${{ env.VERSION }}-macos-x64.dmg)
-            - macOS (ARM): [supa-bass-o-matic-${{ env.VERSION }}-macos-arm.dmg](supa-bass-o-matic-${{ env.VERSION }}-macos-arm.dmg)
+            - Windows (x64): [supa-bass-o-matic-${{ env.VERSION }}-windows-x64.msi](https://github.com/burggraf/supa-bass-o-matic/releases/download/v${{ env.VERSION }}/supa-bass-o-matic-${{ env.VERSION }}-windows-x64.msi)
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1

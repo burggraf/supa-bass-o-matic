@@ -103,7 +103,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
-          fail_on_unmatched_files: false
+          append_body: true
+          body: |
+            - macOS (x64): [supa-bass-o-matic-${{ env.VERSION }}-macos-x64.dmg](https://github.com/burggraf/supa-bass-o-matic/releases/download/v${{ env.VERSION }}/supa-bass-o-matic-${{ env.VERSION }}-macos-x64.dmg)
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1

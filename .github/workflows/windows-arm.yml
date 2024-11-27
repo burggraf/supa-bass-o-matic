@@ -85,7 +85,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
-          fail_on_unmatched_files: false
+          append_body: true
+          body: |
+            - Windows (ARM): [${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi](https://github.com/burggraf/supa-bass-o-matic/releases/download/v${{ env.VERSION }}/${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi)
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1

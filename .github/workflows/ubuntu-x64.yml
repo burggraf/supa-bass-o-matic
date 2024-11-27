@@ -90,7 +90,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
-          fail_on_unmatched_files: false
+          append_body: true
+          body: |
+            - Ubuntu (x64): [${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb](https://github.com/burggraf/supa-bass-o-matic/releases/download/v${{ env.VERSION }}/${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb)
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
