@@ -67,7 +67,21 @@ jobs:
 
       - name: Locate and rename artifact
         run: |
-          find src-tauri/target -name "*.dmg" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-arm.dmg \;
+          echo "Looking for DMG files in src-tauri/target..."
+          find src-tauri/target -name "*.dmg" -type f
+          echo "Looking for DMG files in target/release/bundle/dmg..."
+          find target/release/bundle/dmg -name "*.dmg" -type f || true
+          echo "Looking for DMG files in target/release/bundle/macos..."
+          find target/release/bundle/macos -name "*.dmg" -type f || true
+          # First try the new location
+          if [ -d "target/release/bundle/dmg" ]; then
+            find target/release/bundle/dmg -name "*.dmg" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-arm.dmg \;
+          else
+            # Fall back to the src-tauri location
+            find src-tauri/target -name "*.dmg" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-macos-arm.dmg \;
+          fi
+          echo "Final file check:"
+          ls -la ${{ env.NAME }}-${{ env.VERSION }}-macos-arm.dmg || true
 
       - name: Get Release
         id: get_release
