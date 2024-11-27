@@ -96,8 +96,8 @@ jobs:
             echo "Response from GitHub API:"
             echo "$response"
             
-            # Check if we got a valid upload_url
-            upload_url=$(echo "$response" | jq -r .upload_url)
+            # Check if we got a valid upload_url and remove the {?name,label} template
+            upload_url=$(echo "$response" | jq -r .upload_url | sed 's/{?name,label}//')
             if [ "$upload_url" != "null" ] && [ -n "$upload_url" ]; then
               echo "UPLOAD_URL=$upload_url" >> $GITHUB_ENV
               break
