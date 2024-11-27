@@ -57,41 +57,24 @@ jobs:
       - name: Build web assets
         run: npm run build
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Locate and rename artifact
+        run: |
+          Get-ChildItem src-tauri\target -Recurse -Filter "*.msi" | ForEach-Object { Move-Item $_.FullName "${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi" }
+
+      - name: Get Release
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ env.NAME }}-${{ env.VERSION }}
-          releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
-          distPath: ./build
-          bundleIdentifier: com.supabasecommunity.supabassomatic
-          appName: "${{ env.NAME }}"
-          appVersion: "${{ env.VERSION }}"
-          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-windows-arm"
-          artifactPaths: |
-            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/**/*.msi
-            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/**/*.exe
+          tag_name: ${{ env.NAME }}-${{ env.VERSION }}
 
-      - name: Rename bundle files
-        shell: pwsh
-        run: |
-          Get-ChildItem -Path src-tauri -Recurse -Filter "*.msi" | ForEach-Object {
-            $newName = "${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi"
-            Move-Item $_.FullName (Join-Path $_.Directory.FullName $newName) -Force
-          }
-          Get-ChildItem -Path src-tauri -Recurse -Filter "*setup.exe" | ForEach-Object {
-            $newName = "${{ env.NAME }}-${{ env.VERSION }}-windows-arm.exe"
-            Move-Item $_.FullName (Join-Path $_.Directory.FullName $newName) -Force
-          }
-
-      - name: Locate bundle files
-        shell: pwsh
-        run: |
-          Write-Host "Looking for bundle files..."
-          Get-ChildItem -Path src-tauri -Recurse -Include *.msi,*.exe | ForEach-Object {
-            Write-Host $_.FullName
-          }
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi
+          asset_content_type: application/octet-stream
