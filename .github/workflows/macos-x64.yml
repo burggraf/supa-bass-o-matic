@@ -89,3 +89,5 @@ jobs:
           asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.app.tar.gz
           asset_content_type: application/gzip
+
+          
