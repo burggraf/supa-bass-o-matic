@@ -68,12 +68,21 @@ jobs:
 
       - name: Locate and rename artifact
         run: |
-          # First try the architecture-specific path
-          if [ -d "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg" ]; then
-            find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" -exec mv {} ./${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg \;
+          echo "Debug: Listing all files in target directory"
+          ls -R src-tauri/target || true
+          
+          echo "Debug: Searching for any DMG files"
+          find . -name "*.dmg" -type f || true
+          
+          # Try to find and move the DMG file, with error handling
+          DMG_FILE=$(find . -name "*.dmg" -type f | head -n 1)
+          if [ -n "$DMG_FILE" ]; then
+            echo "Found DMG file at: $DMG_FILE"
+            mv "$DMG_FILE" "./${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg"
+            echo "Successfully renamed DMG file"
           else
-            # Fall back to the default path
-            find src-tauri/target/release/bundle/dmg -name "*.dmg" -exec mv {} ./${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg \;
+            echo "Error: No DMG file found"
+            exit 1
           fi
 
       - name: Get Release
