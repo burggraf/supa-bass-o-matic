@@ -7,21 +7,17 @@ on:
       - "publish-windows-arm"
       - "publish-ubuntu-x86"
       - "publish-ubuntu-arm"
-      - "publish-macos-x86"
+      - "publish-macos-x64"
       - "publish-macos-arm"
     types:
       - completed
-    branches:
-      - release
 
 jobs:
   update-release:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    if: |
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow.path != '.github/workflows/update-release-links.yml'
+    if: github.event.workflow_run.conclusion == 'success'
 
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +55,7 @@ jobs:
               '-windows-arm.msi',
               '-ubuntu-x86.deb',
               '-ubuntu-arm.deb',
-              '-macos-x86.dmg',
+              '-macos-x64.dmg',
               '-macos-arm.dmg'
             ];
             
@@ -121,7 +117,7 @@ jobs:
             - Windows (ARM): [${process.env.NAME}-${process.env.VERSION}-windows-arm.msi](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-windows-arm.msi)
             - Ubuntu (x86): [${process.env.NAME}-${process.env.VERSION}-ubuntu-x86.deb](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-ubuntu-x86.deb)
             - Ubuntu (ARM): [${process.env.NAME}-${process.env.VERSION}-ubuntu-arm.deb](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-ubuntu-arm.deb)
-            - macOS (x86): [${process.env.NAME}-${process.env.VERSION}-macos-x86.dmg](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-macos-x86.dmg)
+            - macOS (x64): [${process.env.NAME}-${process.env.VERSION}-macos-x64.dmg](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-macos-x64.dmg)
             - macOS (ARM): [${process.env.NAME}-${process.env.VERSION}-macos-arm.dmg](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-macos-arm.dmg)`;
             
             console.log('Updating release body...');
