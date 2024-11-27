@@ -81,12 +81,37 @@ jobs:
       - name: Get Release URL
         id: get_release
         run: |
-          response=$(curl -L \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/${{ env.NAME }}-${{ env.VERSION }}")
-          echo "UPLOAD_URL=$(echo $response | jq -r .upload_url)" >> $GITHUB_ENV
+          # Wait for a short time to ensure the release is available
+          sleep 30
+          
+          # Try to get the release multiple times
+          for i in {1..3}; do
+            response=$(curl -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/${{ env.NAME }}-${{ env.VERSION }}")
+            
+            # Debug output
+            echo "Response from GitHub API:"
+            echo "$response"
+            
+            # Check if we got a valid upload_url
+            upload_url=$(echo "$response" | jq -r .upload_url)
+            if [ "$upload_url" != "null" ] && [ -n "$upload_url" ]; then
+              echo "UPLOAD_URL=$upload_url" >> $GITHUB_ENV
+              break
+            fi
+            
+            echo "Attempt $i: Failed to get valid upload URL, waiting before retry..."
+            sleep 10
+          done
+          
+          # Verify we have a valid URL
+          if [ -z "$UPLOAD_URL" ] || [ "$UPLOAD_URL" = "null" ]; then
+            echo "Failed to get valid upload URL after retries"
+            exit 1
+          fi
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
