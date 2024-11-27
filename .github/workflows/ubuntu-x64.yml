@@ -83,20 +83,22 @@ jobs:
           find src-tauri/target -name "*.deb" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb \;
           find src-tauri/target -name "*.AppImage" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage \;
 
-      - name: Get Release
+      - name: Get Release URL
         id: get_release
-        uses: bruceadams/get-release@v1.3.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ env.NAME }}-${{ env.VERSION }}
+        run: |
+          response=$(curl -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/${{ env.NAME }}-${{ env.VERSION }}")
+          echo "UPLOAD_URL=$(echo $response | jq -r .upload_url)" >> $GITHUB_ENV
 
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
           asset_content_type: application/vnd.debian.binary-package
@@ -106,7 +108,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage
           asset_name: ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.AppImage
           asset_content_type: application/x-executable
