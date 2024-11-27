@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest" # for Arm based macs (M1 and above).
+          - platform: "macos-latest"
             args: "--target aarch64-apple-darwin"
 
     runs-on: ${{ matrix.platform }}
@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: setup node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -30,7 +30,7 @@ jobs:
         run: |
           echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
           echo "NAME=$(node -p "require('./package.json').name")" >> $GITHUB_ENV
-          echo "IDENTIFIER=$(node -p "require('./package.json').identifier")" >> $GITHUB_ENV    
+          echo "IDENTIFIER=$(node -p "require('./package.json').identifier")" >> $GITHUB_ENV
           echo "DESCRIPTION=$(node -p "require('./package.json').description")" >> $GITHUB_ENV
 
       - name: Check environment variables
@@ -39,10 +39,10 @@ jobs:
           echo "ENV NAME: ${{ env.NAME }}"
           echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
 
-      - name: install Rust stable
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: aarch64-apple-darwin
 
       - name: Install npm dependencies
         run: npm install
@@ -55,12 +55,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ env.NAME }}-${{ env.VERSION }}
-          releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
-          prerelease: true
-          args: --target aarch64-apple-darwin
+          args: ${{ matrix.args }}
           distPath: ./build
           bundleIdentifier: ${{ env.IDENTIFIER }}
           appName: "${{ env.NAME }}"
