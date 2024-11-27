@@ -94,32 +94,6 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for release and retry
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const maxAttempts = 10;
-            const delaySeconds = 30;
-            
-            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-              try {
-                const release = await github.rest.repos.getReleaseByTag({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  tag: `v${process.env.VERSION}`
-                });
-                console.log(`Found release on attempt ${attempt}`);
-                break;
-              } catch (error) {
-                if (attempt === maxAttempts) {
-                  console.log('Max attempts reached, failing');
-                  throw error;
-                }
-                console.log(`Attempt ${attempt} failed, waiting ${delaySeconds} seconds...`);
-                await new Promise(r => setTimeout(r, delaySeconds * 1000));
-              }
-            }
-
       - name: Get Release
         id: get_release
         uses: softprops/action-gh-release@v1
@@ -128,9 +102,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
-          append_body: true
-          body: |
-            - macOS (ARM): [supa-bass-o-matic-${{ env.VERSION }}-macos-arm.dmg](https://github.com/burggraf/supa-bass-o-matic/releases/download/v${{ env.VERSION }}/supa-bass-o-matic-${{ env.VERSION }}-macos-arm.dmg)
+          fail_on_unmatched_files: false
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
