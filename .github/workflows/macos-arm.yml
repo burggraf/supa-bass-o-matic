@@ -66,25 +66,33 @@ jobs:
           appName: "${{ env.NAME }}"
           appVersion: "${{ env.VERSION }}"
 
-      - name: Locate and rename artifact
+      - name: Install create-dmg
         run: |
-          # Look in the architecture-specific bundle directory
-          DMG_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
-          if [ -d "$DMG_PATH" ]; then
-            echo "Found DMG directory at: $DMG_PATH"
-            DMG_FILE=$(find "$DMG_PATH" -name "*.dmg" -type f | head -n 1)
-            if [ -n "$DMG_FILE" ]; then
-              echo "Found DMG file at: $DMG_FILE"
-              mv "$DMG_FILE" "./${{ env.NAME }}-${{ env.VERSION }}-macos-arm.dmg"
-              echo "Successfully renamed DMG file"
-              exit 0
-            fi
-          fi
+          brew install create-dmg
+
+      - name: Create DMG
+        run: |
+          APP_PATH="src-tauri/target/aarch64-apple-darwin/release/bundle/macos/supa-bass-o-matic.app"
+          DMG_NAME="${{ env.NAME }}-${{ env.VERSION }}-macos-arm.dmg"
           
-          echo "Error: No DMG file found"
-          echo "Contents of target directory:"
-          ls -R src-tauri/target/aarch64-apple-darwin/release/bundle || true
-          exit 1
+          if [ -d "$APP_PATH" ]; then
+            echo "Creating DMG from $APP_PATH"
+            create-dmg \
+              --volname "Supa Bass-O-Matic" \
+              --window-pos 200 120 \
+              --window-size 600 300 \
+              --icon-size 100 \
+              --icon "supa-bass-o-matic.app" 175 120 \
+              --hide-extension "supa-bass-o-matic.app" \
+              --app-drop-link 425 120 \
+              "./$DMG_NAME" \
+              "$APP_PATH"
+            
+            echo "Successfully created DMG file"
+          else
+            echo "Error: .app file not found at $APP_PATH"
+            exit 1
+          fi
 
       - name: Get Release
         id: get_release

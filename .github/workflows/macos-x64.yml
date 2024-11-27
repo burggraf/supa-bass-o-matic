@@ -80,6 +80,34 @@ jobs:
             exit 1
           fi
 
+      - name: Install create-dmg
+        run: |
+          brew install create-dmg
+
+      - name: Create DMG
+        run: |
+          APP_PATH="src-tauri/target/x86_64-apple-darwin/release/bundle/macos/supa-bass-o-matic.app"
+          DMG_NAME="${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg"
+          
+          if [ -d "$APP_PATH" ]; then
+            echo "Creating DMG from $APP_PATH"
+            create-dmg \
+              --volname "Supa Bass-O-Matic" \
+              --window-pos 200 120 \
+              --window-size 600 300 \
+              --icon-size 100 \
+              --icon "supa-bass-o-matic.app" 175 120 \
+              --hide-extension "supa-bass-o-matic.app" \
+              --app-drop-link 425 120 \
+              "./$DMG_NAME" \
+              "$APP_PATH"
+            
+            echo "Successfully created DMG file"
+          else
+            echo "Error: .app file not found at $APP_PATH"
+            exit 1
+          fi
+
       - name: Get Release
         id: get_release
         uses: softprops/action-gh-release@v1
