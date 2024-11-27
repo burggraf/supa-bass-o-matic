@@ -96,22 +96,23 @@ jobs:
             echo "Response from GitHub API:"
             echo "$response"
             
-            # Check if we got a valid upload_url and remove the {?name,label} template
+            # Extract and clean the upload URL
             upload_url=$(echo "$response" | jq -r .upload_url | sed 's/{?name,label}//')
+            
+            # Check if we got a valid upload_url
             if [ "$upload_url" != "null" ] && [ -n "$upload_url" ]; then
+              echo "upload_url=$upload_url"
               echo "UPLOAD_URL=$upload_url" >> $GITHUB_ENV
-              break
+              echo "UPLOAD_URL=$upload_url" >> $GITHUB_OUTPUT
+              exit 0
             fi
             
             echo "Attempt $i: Failed to get valid upload URL, waiting before retry..."
             sleep 10
           done
           
-          # Verify we have a valid URL
-          if [ -z "$UPLOAD_URL" ] || [ "$UPLOAD_URL" = "null" ]; then
-            echo "Failed to get valid upload URL after retries"
-            exit 1
-          fi
+          echo "Failed to get valid upload URL after retries"
+          exit 1
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
