@@ -214,6 +214,32 @@ jobs:
         run: |
           find src-tauri/target -name "*.deb" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb \;
 
+      - name: Wait for release and retry
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const maxAttempts = 10;
+            const delaySeconds = 30;
+            
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              try {
+                const release = await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: `v${process.env.VERSION}`
+                });
+                console.log(`Found release on attempt ${attempt}`);
+                break;
+              } catch (error) {
+                if (attempt === maxAttempts) {
+                  console.log('Max attempts reached, failing');
+                  throw error;
+                }
+                console.log(`Attempt ${attempt} failed, waiting ${delaySeconds} seconds...`);
+                await new Promise(r => setTimeout(r, delaySeconds * 1000));
+              }
+            }
+
       - name: Get Release
         id: get_release
         uses: softprops/action-gh-release@v1

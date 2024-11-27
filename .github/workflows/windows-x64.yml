@@ -58,11 +58,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ env.NAME }}-${{ env.VERSION }}
-          releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
+          tagName: v${{ env.VERSION }}
+          releaseName: "Version ${{ env.VERSION }}"
           releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
-          prerelease: true
+          releaseDraft: false
+          prerelease: false
           args: ${{ matrix.args }}
           distPath: ./build
           bundleIdentifier: ${{ env.IDENTIFIER }}
