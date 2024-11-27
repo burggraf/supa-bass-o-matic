@@ -75,7 +75,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.NAME }}-${{ env.VERSION }}
+          tag_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64
           release_name: ${{ env.NAME }} ${{ env.VERSION }}
           draft: false
           prerelease: false
