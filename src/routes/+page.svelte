@@ -10,6 +10,7 @@
     import * as Accordion from "$lib/components/ui/accordion";
     import { Trash2, Check, Plus, Pencil } from "lucide-svelte";
     import SqlPresets from "$lib/components/sql-presets.svelte";
+    import { format } from 'sql-formatter';
 
     interface Connection {
         title: string;
@@ -44,6 +45,18 @@
         switch (columnName.toLowerCase()) {
             case 'transactionid':
                 return value.toString();
+            case 'query':
+            try {
+                    const formatted = format(value.toString(), {
+                        language: 'postgresql',
+                        uppercase: true,
+                        indentWidth: 2
+                    });
+                    console.log('Formatted query:', formatted);
+                    return `<pre class="whitespace-pre font-mono text-sm">${formatted}</pre>`;
+                } catch (e) {
+                    return value.toString();
+                }
             default:
                 return value.toString();
         }
@@ -380,7 +393,7 @@
                                                         <Table.Row>
                                                             {#each row as cell, i}
                                                                 <Table.Cell>
-                                                                    {formatCellValue(cell, result.result.columns[i])}
+                                                                    {@html formatCellValue(cell, result.result.columns[i])}
                                                                 </Table.Cell>
                                                             {/each}
                                                         </Table.Row>
