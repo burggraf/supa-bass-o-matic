@@ -27,6 +27,11 @@
         description: string;
         result: { columns: string[], rows: string[][] };
     }>>([]);
+    let openItems: string[] = [];
+    let sortConfig = $state({
+        column: null as number | null,
+        direction: 'asc' as 'asc' | 'desc'
+    });
     let error = $state<string | null>(null);
     let debugOutput = $state<string[]>([]);
     let isLoading = $state(false);
@@ -35,7 +40,6 @@
     let isEditing = $state(false);
     let isDebugVisible = $state(false);
     let selectRef: { close: () => void } | null = $state(null);
-    let openItems = $state<string[]>([]);
 
     // Format cell value based on column type and content
     function formatCellValue(value: any, columnName: string): string {
@@ -216,6 +220,41 @@
         }
     }
 
+    function toggleSort(columnIndex: number) {
+        if (sortConfig.column === columnIndex) {
+            // Toggle direction if clicking the same column
+            sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            // New column, set to ascending
+            sortConfig.column = columnIndex;
+            sortConfig.direction = 'asc';
+        }
+        
+        // Create a new array with sorted rows for each result
+        queryResults = queryResults.map(result => {
+            const sortedRows = [...result.result.rows].sort((a, b) => {
+                const aVal = a[columnIndex];
+                const bVal = b[columnIndex];
+                
+                // Handle different types of values
+                const compare = 
+                    typeof aVal === 'number' && typeof bVal === 'number' 
+                        ? aVal - bVal
+                        : String(aVal).localeCompare(String(bVal));
+                
+                return sortConfig.direction === 'asc' ? compare : -compare;
+            });
+
+            return {
+                ...result,
+                result: {
+                    ...result.result,
+                    rows: sortedRows
+                }
+            };
+        });
+    }
+
     $effect(() => {
         // console.log('selectedConnection changed:', selectedConnection);
     });
@@ -382,8 +421,20 @@
                                             <Table.Root>
                                                 <Table.Header>
                                                     <Table.Row>
-                                                        {#each result.result.columns as column}
-                                                            <Table.Head>{column}</Table.Head>
+                                                        {#each result.result.columns as column, columnIndex}
+                                                            <Table.Head 
+                                                                onclick={() => toggleSort(columnIndex)}
+                                                                class="cursor-pointer hover:bg-gray-100"
+                                                            >
+                                                                <div class="flex items-center gap-1">
+                                                                    {column}
+                                                                    {#if sortConfig.column === columnIndex}
+                                                                        <span class="text-xs">
+                                                                            {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                                                        </span>
+                                                                    {/if}
+                                                                </div>
+                                                            </Table.Head>
                                                         {/each}
                                                     </Table.Row>
                                                 </Table.Header>
