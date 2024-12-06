@@ -26,12 +26,12 @@
         title: string;
         description: string;
         result: { columns: string[], rows: string[][] };
+        sortConfig?: {
+            column: number | null;
+            direction: 'asc' | 'desc';
+        };
     }>>([]);
     let openItems: string[] = [];
-    let sortConfig = $state({
-        column: null as number | null,
-        direction: 'asc' as 'asc' | 'desc'
-    });
     let error = $state<string | null>(null);
     let debugOutput = $state<string[]>([]);
     let isLoading = $state(false);
@@ -220,39 +220,44 @@
         }
     }
 
-    function toggleSort(columnIndex: number) {
-        if (sortConfig.column === columnIndex) {
+    function toggleSort(resultIndex: number, columnIndex: number) {
+        const result = queryResults[resultIndex];
+        if (!result.sortConfig) {
+            result.sortConfig = {
+                column: null,
+                direction: 'asc'
+            };
+        }
+
+        if (result.sortConfig.column === columnIndex) {
             // Toggle direction if clicking the same column
-            sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+            result.sortConfig.direction = result.sortConfig.direction === 'asc' ? 'desc' : 'asc';
         } else {
             // New column, set to ascending
-            sortConfig.column = columnIndex;
-            sortConfig.direction = 'asc';
+            result.sortConfig.column = columnIndex;
+            result.sortConfig.direction = 'asc';
         }
         
-        // Create a new array with sorted rows for each result
-        queryResults = queryResults.map(result => {
-            const sortedRows = [...result.result.rows].sort((a, b) => {
-                const aVal = a[columnIndex];
-                const bVal = b[columnIndex];
-                
-                // Handle different types of values
-                const compare = 
-                    typeof aVal === 'number' && typeof bVal === 'number' 
-                        ? aVal - bVal
-                        : String(aVal).localeCompare(String(bVal));
-                
-                return sortConfig.direction === 'asc' ? compare : -compare;
-            });
-
-            return {
-                ...result,
-                result: {
-                    ...result.result,
-                    rows: sortedRows
-                }
-            };
+        // Sort only this specific result's rows
+        const sortedRows = [...result.result.rows].sort((a, b) => {
+            const aVal = a[columnIndex];
+            const bVal = b[columnIndex];
+            
+            // Handle different types of values
+            const compare = 
+                typeof aVal === 'number' && typeof bVal === 'number' 
+                    ? aVal - bVal
+                    : String(aVal).localeCompare(String(bVal));
+            
+            return result.sortConfig!.direction === 'asc' ? compare : -compare;
         });
+
+        // Update only this specific result
+        queryResults = queryResults.map((r, index) => 
+            index === resultIndex 
+                ? { ...r, result: { ...r.result, rows: sortedRows } }
+                : r
+        );
     }
 
     $effect(() => {
@@ -406,7 +411,7 @@
                     <div class="mt-4">
                         <h2 class="text-2xl font-semibold mb-4">Results</h2>
                         <Accordion.Root type="multiple" value={openItems} class="space-y-2">
-                            {#each queryResults as result}
+                            {#each queryResults as result, resultIndex}
                                 <Accordion.Item value={result.title} class="border rounded-lg overflow-hidden">
                                     <Accordion.Trigger class="w-full bg-muted hover:bg-muted/80 p-4">
                                         <div class="text-left">
@@ -423,14 +428,14 @@
                                                     <Table.Row>
                                                         {#each result.result.columns as column, columnIndex}
                                                             <Table.Head 
-                                                                onclick={() => toggleSort(columnIndex)}
+                                                                onclick={() => toggleSort(resultIndex, columnIndex)}
                                                                 class="cursor-pointer hover:bg-gray-100"
                                                             >
                                                                 <div class="flex items-center gap-1">
                                                                     {column}
-                                                                    {#if sortConfig.column === columnIndex}
+                                                                    {#if result.sortConfig?.column === columnIndex}
                                                                         <span class="text-xs">
-                                                                            {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                                                            {result.sortConfig.direction === 'asc' ? '↑' : '↓'}
                                                                         </span>
                                                                     {/if}
                                                                 </div>
