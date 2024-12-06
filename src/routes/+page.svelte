@@ -52,7 +52,6 @@
                         uppercase: true,
                         indentWidth: 2
                     });
-                    console.log('Formatted query:', formatted);
                     return `<pre class="whitespace-pre font-mono text-sm">${formatted}</pre>`;
                 } catch (e) {
                     return value.toString();
