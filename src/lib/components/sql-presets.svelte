@@ -109,86 +109,93 @@ const categories = {
 };
 </script>
 
-<div class="flex-1">
+<div class="flex-1 flex gap-2">
   <Button variant="outline" onclick={() => isOpen = true} class="w-full justify-start">
     Choose SQL presets ({selectedItems.length} selected)
   </Button>
-
-  <Dialog.Dialog bind:open={isOpen}>
-    <Dialog.DialogContent class="max-w-4xl">
-      <Dialog.DialogHeader>
-        <Dialog.DialogTitle>SQL Presets ({selectedItems.length} of {getTotalItems()} selected)</Dialog.DialogTitle>
-        <Dialog.DialogDescription>
-          Choose from predefined SQL queries to explore and analyze your data
-        </Dialog.DialogDescription>
-      </Dialog.DialogHeader>
-
-      <div class="relative max-h-[60vh] overflow-auto">
-        <Accordion.Root type="multiple">
-          {#each Object.entries(categories) as [key, category]}
-            <Accordion.Item value={key} class="border-b-0">
-              <div class="flex items-center gap-2 bg-muted/50 hover:bg-muted px-4 py-2">
-                <div onclick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={isGroupFullySelected(category.items)}
-                    onCheckedChange={(checked: boolean) => handleGroupSelect(category.items, checked)}
-                  />
-                </div>
-                <Accordion.Trigger class="flex-1">
-                  <span class="font-semibold">{category.title} ({getSelectedCountForCategory(category.items)}/{category.items.length})</span>
-                </Accordion.Trigger>
-              </div>
-              <Accordion.Content>
-                <Accordion.Root type="single" class="px-2">
-                  {#each category.items as item}
-                    <Accordion.Item value={item.id}>
-                      <button onclick={(e) => e.stopPropagation()} class="flex items-center px-4 py-2">
-                        <Checkbox
-                          checked={isSelected(item.id)}
-                          onCheckedChange={(checked: boolean) => {
-                            handlePresetSelect(item.id, item.title, item.sql, checked);
-                          }}
-                          class="mr-2"
-                        />
-                        <Accordion.Trigger class="flex-1 text-left">
-                          <span class="font-medium">{item.title}</span>
-                        </Accordion.Trigger>
-                      </button>
-                      <Accordion.Content class="-mt-4">
-                        <div class="pb-4">
-                          <p class="text-sm text-muted-foreground mb-2">{item.description}</p>
-                          <pre class="text-xs bg-muted p-2 rounded-md whitespace-pre-wrap">{@html item.sql.trim().replace(/\\n/g, '\n')}</pre>
-                        </div>
-                      </Accordion.Content>
-                    </Accordion.Item>
-                  {/each}
-                </Accordion.Root>
-              </Accordion.Content>
-            </Accordion.Item>
-          {/each}
-        </Accordion.Root>
-      </div>
-
-      <Dialog.DialogFooter class="flex justify-between">
-        <div class="text-sm text-muted-foreground">
-          {selectedItems.length} queries selected
-        </div>
-        <div class="space-x-2">
-          <Button variant="outline" onclick={() => {
-            isOpen = false;
-            selectedItems = [];
-          }}>
-            Cancel
-          </Button>
-          <Button 
-            variant="default" 
-            onclick={handleExecuteSelected}
-            disabled={selectedItems.length === 0}
-          >
-            Execute Selected ({selectedItems.length})
-          </Button>
-        </div>
-      </Dialog.DialogFooter>
-    </Dialog.DialogContent>
-  </Dialog.Dialog>
+  <Button 
+    variant="default" 
+    onclick={handleExecuteSelected}
+    disabled={selectedItems.length === 0}
+  >
+    Execute Selected ({selectedItems.length})
+  </Button>
 </div>
+
+<Dialog.Dialog bind:open={isOpen}>
+  <Dialog.DialogContent class="max-w-4xl">
+    <Dialog.DialogHeader>
+      <Dialog.DialogTitle>SQL Presets ({selectedItems.length} of {getTotalItems()} selected)</Dialog.DialogTitle>
+      <Dialog.DialogDescription>
+        Choose from predefined SQL queries to explore and analyze your data
+      </Dialog.DialogDescription>
+    </Dialog.DialogHeader>
+
+    <div class="relative max-h-[60vh] overflow-auto">
+      <Accordion.Root type="multiple">
+        {#each Object.entries(categories) as [key, category]}
+          <Accordion.Item value={key} class="border-b-0">
+            <div class="flex items-center gap-2 bg-muted/50 hover:bg-muted px-4 py-2">
+              <div onclick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={isGroupFullySelected(category.items)}
+                  onCheckedChange={(checked: boolean) => handleGroupSelect(category.items, checked)}
+                />
+              </div>
+              <Accordion.Trigger class="flex-1">
+                <span class="font-semibold">{category.title} ({getSelectedCountForCategory(category.items)}/{category.items.length})</span>
+              </Accordion.Trigger>
+            </div>
+            <Accordion.Content>
+              <Accordion.Root type="single" class="px-2">
+                {#each category.items as item}
+                  <Accordion.Item value={item.id}>
+                    <button onclick={(e) => e.stopPropagation()} class="flex items-center px-4 py-2">
+                      <Checkbox
+                        checked={isSelected(item.id)}
+                        onCheckedChange={(checked: boolean) => {
+                          handlePresetSelect(item.id, item.title, item.sql, checked);
+                        }}
+                        class="mr-2"
+                      />
+                      <Accordion.Trigger class="flex-1 text-left">
+                        <span class="font-medium">{item.title}</span>
+                      </Accordion.Trigger>
+                    </button>
+                    <Accordion.Content class="-mt-4">
+                      <div class="pb-4">
+                        <p class="text-sm text-muted-foreground mb-2">{item.description}</p>
+                        <pre class="text-xs bg-muted p-2 rounded-md whitespace-pre-wrap">{@html item.sql.trim().replace(/\\n/g, '\n')}</pre>
+                      </div>
+                    </Accordion.Content>
+                  </Accordion.Item>
+                {/each}
+              </Accordion.Root>
+            </Accordion.Content>
+          </Accordion.Item>
+        {/each}
+      </Accordion.Root>
+    </div>
+
+    <Dialog.DialogFooter class="flex justify-between">
+      <div class="text-sm text-muted-foreground">
+        {selectedItems.length} queries selected
+      </div>
+      <div class="space-x-2">
+        <Button variant="outline" onclick={() => {
+          isOpen = false;
+          selectedItems = [];
+        }}>
+          Cancel
+        </Button>
+        <Button 
+          variant="default" 
+          onclick={handleExecuteSelected}
+          disabled={selectedItems.length === 0}
+        >
+          Execute Selected ({selectedItems.length})
+        </Button>
+      </div>
+    </Dialog.DialogFooter>
+  </Dialog.DialogContent>
+</Dialog.Dialog>
