@@ -1,6 +1,6 @@
 {
   "presets": {
-    "title": "SQL Presets",
+    "title": "Query Analysis",
     "items": [
       {
         "id": "1",
@@ -15,40 +15,10 @@
         "sql": "SELECT\n  pg_stat_activity.pid,\n  COALESCE(pg_class.relname, 'null') AS relname,\n  COALESCE(pg_locks.transactionid::text, 'null') AS transactionid,\n  pg_locks.granted,\n  pg_stat_activity.query,\n  age(now(), pg_stat_activity.query_start)::text AS age\nFROM\n  pg_stat_activity,\n  pg_locks\n  LEFT OUTER JOIN pg_class ON (pg_locks.relation = pg_class.oid)\nWHERE\n  pg_stat_activity.query <> '<insufficient privilege>'\n  AND pg_locks.pid = pg_stat_activity.pid\n  AND pg_locks.mode = 'ExclusiveLock'\nORDER BY\n  query_start"
       },
       {
-        "id": "3",
-        "title": "Cache Hit Rates",
-        "description": "Shows cache hit rates for indexes and tables",
-        "sql": "SELECT\n  'index hit rate' AS name,\n  (sum(idx_blks_hit)) / nullif(sum(idx_blks_hit + idx_blks_read), 0) AS ratio\nFROM\n  pg_statio_user_indexes\nUNION ALL\nSELECT\n  'table hit rate' AS name,\n  sum(heap_blks_hit) / nullif(sum(heap_blks_hit) + sum(heap_blks_read), 0) AS ratio\nFROM\n  pg_statio_user_tables"
-      },
-      {
         "id": "4",
         "title": "Blocking Queries",
         "description": "Shows queries that are blocking other queries",
         "sql": "SELECT\n  bl.pid AS blocked_pid,\n  ka.query AS blocking_statement,\n  age(now(), ka.query_start)::text AS blocking_duration,\n  kl.pid AS blocking_pid,\n  a.query AS blocked_statement,\n  age(now(), a.query_start)::text AS blocked_duration\nFROM\n  pg_catalog.pg_locks bl\n  JOIN pg_catalog.pg_stat_activity a ON bl.pid = a.pid\n  JOIN pg_catalog.pg_locks kl\n  JOIN pg_catalog.pg_stat_activity ka ON kl.pid = ka.pid\n    ON bl.transactionid = kl.transactionid\n    AND bl.pid != kl.pid\nWHERE\n  NOT bl.granted"
-      },
-      {
-        "id": "5",
-        "title": "Index Usage Stats",
-        "description": "Shows how often indexes are used for each table",
-        "sql": "SELECT\n  schemaname || '.' || relname AS name,\n  CASE\n    WHEN idx_scan IS NULL THEN 'Insufficient data'\n    WHEN idx_scan = 0 THEN 'Insufficient data'\n    ELSE ROUND(100.0 * idx_scan / (seq_scan + idx_scan), 1) || '%'\n  END percent_of_times_index_used,\n  n_live_tup rows_in_table\nFROM\n  pg_stat_user_tables\nWHERE\n  NOT schemaname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\nORDER BY\n  CASE\n    WHEN idx_scan is null THEN 1\n    WHEN idx_scan = 0 THEN 1\n    ELSE 0\n  END,\n  n_live_tup DESC"
-      },
-      {
-        "id": "6",
-        "title": "Unused Indexes",
-        "description": "Shows potentially unused indexes that might be candidates for removal",
-        "sql": "SELECT\n  schemaname || '.' || relname AS table,\n  indexrelname AS index,\n  pg_size_pretty(pg_relation_size(i.indexrelid)) AS index_size,\n  idx_scan as index_scans\nFROM\n  pg_stat_user_indexes ui\n  JOIN pg_index i ON ui.indexrelid = i.indexrelid\nWHERE\n  NOT indisunique\n  AND idx_scan < 50\n  AND pg_relation_size(relid) > 5 * 8192\n  AND NOT schemaname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\nORDER BY\n  pg_relation_size(i.indexrelid) / nullif(idx_scan, 0) DESC NULLS FIRST,\n  pg_relation_size(i.indexrelid) DESC"
-      },
-      {
-        "id": "7",
-        "title": "Role Connections",
-        "description": "Shows active connections per role and their limits",
-        "sql": "SELECT\n  rolname,\n  (SELECT count(*)\n   FROM pg_stat_activity\n   WHERE pg_roles.rolname = pg_stat_activity.usename) AS active_connections,\n  CASE\n    WHEN rolconnlimit = -1 THEN current_setting('max_connections')::int8\n    ELSE rolconnlimit\n  END AS connection_limit\nFROM\n  pg_roles\nORDER BY\n  2 DESC"
-      },
-      {
-        "id": "8",
-        "title": "Table and Index Bloat",
-        "description": "Shows tables and indexes with potential bloat",
-        "sql": "WITH constants AS (\n  SELECT current_setting('block_size')::numeric AS bs, 23 AS hdr, 4 AS ma\n), bloat_info AS (\n  SELECT\n    ma,bs,schemaname,tablename,\n    (datawidth+(hdr+ma-(case when hdr%ma=0 THEN ma ELSE hdr%ma END)))::numeric AS datahdr,\n    (maxfracsum*(nullhdr+ma-(case when nullhdr%ma=0 THEN ma ELSE nullhdr%ma END))) AS nullhdr2\n  FROM (\n    SELECT\n      schemaname, tablename, hdr, ma, bs,\n      SUM((1-null_frac)*avg_width) AS datawidth,\n      MAX(null_frac) AS maxfracsum,\n      hdr+(\n        SELECT 1+count(*)/8\n        FROM pg_stats s2\n        WHERE null_frac<>0 AND s2.schemaname = s.schemaname AND s2.tablename = s.tablename\n      ) AS nullhdr\n    FROM pg_stats s, constants\n    GROUP BY 1,2,3,4,5\n  ) AS foo\n), table_bloat AS (\n  SELECT\n    schemaname, tablename, cc.relpages, bs,\n    CEIL((cc.reltuples*((datahdr+ma-\n      (CASE WHEN datahdr%ma=0 THEN ma ELSE datahdr%ma END))+nullhdr2+4))/(bs-20::float)) AS otta\n  FROM bloat_info\n  JOIN pg_class cc ON cc.relname = bloat_info.tablename\n  JOIN pg_namespace nn ON cc.relnamespace = nn.oid AND nn.nspname = bloat_info.schemaname AND nn.nspname <> 'information_schema'\n), index_bloat AS (\n  SELECT\n    schemaname, tablename, bs,\n    COALESCE(c2.relname,'?') AS iname, COALESCE(c2.reltuples,0) AS ituples, COALESCE(c2.relpages,0) AS ipages,\n    COALESCE(CEIL((c2.reltuples*(datahdr-12))/(bs-20::float)),0) AS iotta -- very rough approximation, assumes all cols\n  FROM bloat_info\n  JOIN pg_class cc ON cc.relname = bloat_info.tablename\n  JOIN pg_namespace nn ON cc.relnamespace = nn.oid AND nn.nspname = bloat_info.schemaname AND nn.nspname <> 'information_schema'\n  JOIN pg_index i ON indrelid = cc.oid\n  JOIN pg_class c2 ON c2.oid = i.indexrelid\n)\nSELECT\n  type, schemaname, object_name, bloat, pg_size_pretty(raw_waste) as waste\nFROM\n(SELECT\n  'table' as type,\n  schemaname,\n  tablename as object_name,\n  ROUND(CASE WHEN otta=0 THEN 0.0 ELSE table_bloat.relpages/otta::numeric END,1) AS bloat,\n  CASE WHEN relpages < otta THEN '0' ELSE (bs*(table_bloat.relpages-otta)::bigint)::bigint END AS raw_waste\nFROM\n  table_bloat\n    UNION\nSELECT\n  'index' as type,\n  schemaname,\n  tablename || '::' || iname as object_name,\n  ROUND(CASE WHEN iotta=0 OR ipages=0 THEN 0.0 ELSE ipages/iotta::numeric END,1) AS bloat,\n  CASE WHEN ipages < iotta THEN '0' ELSE (bs*(ipages-iotta))::bigint END AS raw_waste\nFROM\n  index_bloat) bloat_summary\nWHERE schemaname NOT IN ('pg_catalog', 'information_schema')\nORDER BY raw_waste DESC, bloat DESC;"
       },
       {
         "id": "9",
@@ -57,10 +27,21 @@
         "sql": "SELECT\n  (interval '1 millisecond' * total_exec_time)::text AS total_exec_time,\n  to_char((total_exec_time/sum(total_exec_time) OVER()) * 100, 'FM90D0') || '%' AS prop_exec_time,\n  to_char(calls, 'FM999G999G999G990') AS ncalls,\n  (interval '1 millisecond' * (blk_read_time + blk_write_time))::text AS sync_io_time,\n  query\nFROM\n  pg_stat_statements\nWHERE\n  userid = (SELECT usesysid FROM pg_user WHERE usename = current_user LIMIT 1)\nORDER BY\n  total_exec_time DESC\nLIMIT 10"
       },
       {
-        "id": "10",
-        "title": "Index Sizes",
-        "description": "Shows the size of all indexes in the database",
-        "sql": "SELECT\n  n.nspname || '.' || c.relname AS name,\n  pg_size_pretty(sum(c.relpages::bigint*8192)::bigint) AS size\nFROM\n  pg_class c\n  LEFT JOIN pg_namespace n ON (n.oid = c.relnamespace)\nWHERE\n  NOT n.nspname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\n  AND c.relkind = 'i'\nGROUP BY\n  n.nspname, c.relname\nORDER BY\n  sum(c.relpages) DESC"
+        "id": "16",
+        "title": "Long Running Queries",
+        "description": "Shows currently running queries that have been running for a long time",
+        "sql": "SELECT\n  pid,\n  age(clock_timestamp(), query_start) AS duration,\n  query\nFROM\n  pg_stat_activity\nWHERE\n  query != '<IDLE>'\n  AND query NOT ILIKE '%pg_stat_activity%'\n  AND state != 'idle'\n  AND state = 'active'\nORDER BY\n  duration DESC"
+      }
+    ]
+  },
+  "optimization": {
+    "title": "Table & Index Optimization",
+    "items": [
+      {
+        "id": "13",
+        "title": "Total Table Sizes",
+        "description": "Shows the total size of tables including indexes and toast data",
+        "sql": "SELECT\n  n.nspname AS schema,\n  c.relname AS name,\n  pg_size_pretty(pg_total_relation_size(c.oid)) AS size\nFROM\n  pg_class c\n  LEFT JOIN pg_namespace n ON (n.oid = c.relnamespace)\nWHERE\n  NOT n.nspname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\n  AND c.relkind = 'r'\nORDER BY\n  pg_total_relation_size(c.oid) DESC"
       },
       {
         "id": "11",
@@ -69,16 +50,28 @@
         "sql": "SELECT\n  schemaname AS schema,\n  relname AS name,\n  n_live_tup AS estimated_count\nFROM\n  pg_stat_user_tables\nWHERE\n  NOT schemaname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\nORDER BY\n  n_live_tup DESC"
       },
       {
-        "id": "12",
-        "title": "Replication Slots",
-        "description": "Shows information about replication slots and their lag",
-        "sql": "SELECT\n  s.slot_name,\n  s.active,\n  COALESCE(r.state, 'N/A') as state,\n  CASE\n    WHEN r.client_addr IS NULL THEN 'N/A'\n    ELSE r.client_addr::text\n  END replication_client_address,\n  GREATEST(0, ROUND((redo_lsn-restart_lsn)/1024/1024/1024, 2)) as replication_lag_gb\nFROM\n  pg_control_checkpoint(),\n  pg_replication_slots s\n  LEFT JOIN pg_stat_replication r ON (r.pid = s.active_pid)"
+        "id": "8",
+        "title": "Table and Index Bloat",
+        "description": "Shows tables and indexes with potential bloat",
+        "sql": "WITH constants AS (\n  SELECT current_setting('block_size')::numeric AS bs, 23 AS hdr, 4 AS ma\n), bloat_info AS (\n  SELECT\n    ma,bs,schemaname,tablename,\n    (datawidth+(hdr+ma-(case when hdr%ma=0 THEN ma ELSE hdr%ma END)))::numeric AS datahdr,\n    (maxfracsum*(nullhdr+ma-(case when nullhdr%ma=0 THEN ma ELSE nullhdr%ma END))) AS nullhdr2\n  FROM (\n    SELECT\n      schemaname, tablename, hdr, ma, bs,\n      SUM((1-null_frac)*avg_width) AS datawidth,\n      MAX(null_frac) AS maxfracsum,\n      hdr+(\n        SELECT 1+count(*)/8\n        FROM pg_stats s2\n        WHERE null_frac<>0 AND s2.schemaname = s.schemaname AND s2.tablename = s.tablename\n      ) AS nullhdr\n    FROM pg_stats s, constants\n    GROUP BY 1,2,3,4,5\n  ) AS foo\n), table_bloat AS (\n  SELECT\n    schemaname, tablename, cc.relpages, bs,\n    CEIL((cc.reltuples*((datahdr+ma-\n      (CASE WHEN datahdr%ma=0 THEN ma ELSE datahdr%ma END))+nullhdr2+4))/(bs-20::float)) AS otta\n  FROM bloat_info\n  JOIN pg_class cc ON cc.relname = bloat_info.tablename\n  JOIN pg_namespace nn ON cc.relnamespace = nn.oid AND nn.nspname = bloat_info.schemaname AND nn.nspname <> 'information_schema'\n), index_bloat AS (\n  SELECT\n    schemaname, tablename, bs,\n    COALESCE(c2.relname,'?') AS iname, COALESCE(c2.reltuples,0) AS ituples, COALESCE(c2.relpages,0) AS ipages,\n    COALESCE(CEIL((c2.reltuples*(datahdr-12))/(bs-20::float)),0) AS iotta -- very rough approximation, assumes all cols\n  FROM bloat_info\n  JOIN pg_class cc ON cc.relname = bloat_info.tablename\n  JOIN pg_namespace nn ON cc.relnamespace = nn.oid AND nn.nspname = bloat_info.schemaname AND nn.nspname <> 'information_schema'\n  JOIN pg_index i ON indrelid = cc.oid\n  JOIN pg_class c2 ON c2.oid = i.indexrelid\n)\nSELECT\n  type, schemaname, object_name, bloat, pg_size_pretty(raw_waste) as waste\nFROM\n(SELECT\n  'table' as type,\n  schemaname,\n  tablename as object_name,\n  ROUND(CASE WHEN otta=0 THEN 0.0 ELSE table_bloat.relpages/otta::numeric END,1) AS bloat,\n  CASE WHEN relpages < otta THEN '0' ELSE (bs*(table_bloat.relpages-otta)::bigint)::bigint END AS raw_waste\nFROM\n  table_bloat\n    UNION\nSELECT\n  'index' as type,\n  schemaname,\n  tablename || '::' || iname as object_name,\n  ROUND(CASE WHEN iotta=0 OR ipages=0 THEN 0.0 ELSE ipages/iotta::numeric END,1) AS bloat,\n  CASE WHEN ipages < iotta THEN '0' ELSE (bs*(ipages-iotta))::bigint END AS raw_waste\nFROM\n  index_bloat) bloat_summary\nWHERE schemaname NOT IN ('pg_catalog', 'information_schema')\nORDER BY raw_waste DESC, bloat DESC;"
       },
       {
-        "id": "13",
-        "title": "Total Table Sizes",
-        "description": "Shows the total size of tables including indexes and toast data",
-        "sql": "SELECT\n  n.nspname AS schema,\n  c.relname AS name,\n  pg_size_pretty(pg_total_relation_size(c.oid)) AS size\nFROM\n  pg_class c\n  LEFT JOIN pg_namespace n ON (n.oid = c.relnamespace)\nWHERE\n  NOT n.nspname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\n  AND c.relkind = 'r'\nORDER BY\n  pg_total_relation_size(c.oid) DESC"
+        "id": "10",
+        "title": "Index Sizes",
+        "description": "Shows the size of all indexes in the database",
+        "sql": "SELECT\n  n.nspname || '.' || c.relname AS name,\n  pg_size_pretty(sum(c.relpages::bigint*8192)::bigint) AS size\nFROM\n  pg_class c\n  LEFT JOIN pg_namespace n ON (n.oid = c.relnamespace)\nWHERE\n  NOT n.nspname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\n  AND c.relkind = 'i'\nGROUP BY\n  n.nspname, c.relname\nORDER BY\n  sum(c.relpages) DESC"
+      },
+      {
+        "id": "5",
+        "title": "Index Usage Stats",
+        "description": "Shows how often indexes are used for each table",
+        "sql": "SELECT\n  schemaname || '.' || relname AS name,\n  CASE\n    WHEN idx_scan IS NULL THEN 'Insufficient data'\n    WHEN idx_scan = 0 THEN 'Insufficient data'\n    ELSE ROUND(100.0 * idx_scan / (seq_scan + idx_scan), 1) || '%'\n  END percent_of_times_index_used,\n  n_live_tup rows_in_table\nFROM\n  pg_stat_user_tables\nWHERE\n  NOT schemaname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\nORDER BY\n  CASE\n    WHEN idx_scan is null THEN 1\n    WHEN idx_scan = 0 THEN 1\n    ELSE 0\n  END,\n  n_live_tup DESC"
+      },
+      {
+        "id": "3",
+        "title": "Cache Hit Rates",
+        "description": "Shows cache hit rates for indexes and tables",
+        "sql": "SELECT\n  'index hit rate' AS name,\n  (sum(idx_blks_hit)) / nullif(sum(idx_blks_hit + idx_blks_read), 0) AS ratio\nFROM\n  pg_statio_user_indexes\nUNION ALL\nSELECT\n  'table hit rate' AS name,\n  sum(heap_blks_hit) / nullif(sum(heap_blks_hit) + sum(heap_blks_read), 0) AS ratio\nFROM\n  pg_statio_user_tables"
       },
       {
         "id": "14",
@@ -87,16 +80,38 @@
         "sql": "SELECT\n  schemaname || '.' || relname AS name,\n  seq_scan as count\nFROM\n  pg_stat_user_tables\nWHERE\n  NOT schemaname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\nORDER BY\n  seq_scan DESC"
       },
       {
+        "id": "6",
+        "title": "Unused Indexes",
+        "description": "Shows potentially unused indexes that might be candidates for removal",
+        "sql": "SELECT\n  schemaname || '.' || relname AS table,\n  indexrelname AS index,\n  pg_size_pretty(pg_relation_size(i.indexrelid)) AS index_size,\n  idx_scan as index_scans\nFROM\n  pg_stat_user_indexes ui\n  JOIN pg_index i ON ui.indexrelid = i.indexrelid\nWHERE\n  NOT indisunique\n  AND idx_scan < 50\n  AND pg_relation_size(relid) > 5 * 8192\n  AND NOT schemaname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\nORDER BY\n  pg_relation_size(i.indexrelid) / nullif(idx_scan, 0) DESC NULLS FIRST,\n  pg_relation_size(i.indexrelid) DESC"
+      }
+    ]
+  },
+  "replication": {
+    "title": "Replication",
+    "items": [
+      {
+        "id": "12",
+        "title": "Replication Slots",
+        "description": "Shows information about replication slots and their lag",
+        "sql": "SELECT\n  s.slot_name,\n  s.active,\n  COALESCE(r.state, 'N/A') as state,\n  CASE\n    WHEN r.client_addr IS NULL THEN 'N/A'\n    ELSE r.client_addr::text\n  END replication_client_address,\n  GREATEST(0, ROUND((redo_lsn-restart_lsn)/1024/1024/1024, 2)) as replication_lag_gb\nFROM\n  pg_control_checkpoint(),\n  pg_replication_slots s\n  LEFT JOIN pg_stat_replication r ON (r.pid = s.active_pid)"
+      }
+    ]
+  },
+  "roles": {
+    "title": "Roles",
+    "items": [
+      {
+        "id": "7",
+        "title": "Role Connections",
+        "description": "Shows active connections per role and their limits",
+        "sql": "SELECT\n  rolname,\n  (SELECT count(*)\n   FROM pg_stat_activity\n   WHERE pg_roles.rolname = pg_stat_activity.usename) AS active_connections,\n  CASE\n    WHEN rolconnlimit = -1 THEN current_setting('max_connections')::int8\n    ELSE rolconnlimit\n  END AS connection_limit\nFROM\n  pg_roles\nORDER BY\n  2 DESC"
+      },
+      {
         "id": "15",
         "title": "Role Configurations",
         "description": "Shows custom configurations set for database roles",
         "sql": "SELECT\n  rolname as role_name,\n  array_to_string(rolconfig, ',', '*') as custom_config\nFROM\n  pg_roles\nWHERE\n  rolconfig is not null"
-      },
-      {
-        "id": "16",
-        "title": "Long Running Queries",
-        "description": "Shows currently running queries that have been running for a long time",
-        "sql": "SELECT\n  pid,\n  age(clock_timestamp(), query_start) AS duration,\n  query\nFROM\n  pg_stat_activity\nWHERE\n  query != '<IDLE>'\n  AND query NOT ILIKE '%pg_stat_activity%'\n  AND state != 'idle'\n  AND state = 'active'\nORDER BY\n  duration DESC"
       }
     ]
   },
