@@ -365,6 +365,7 @@
                                 }
                                 isLoading = false;
                             }}
+                            connectionId={selectedConnection?.title ?? ''}
                         />
                         <Textarea
                             bind:value={sqlQuery}

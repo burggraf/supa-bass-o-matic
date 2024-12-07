@@ -5,14 +5,38 @@ import { Button } from '$lib/components/ui/button';
 import * as Dialog from '$lib/components/ui/dialog';
 import * as Accordion from '$lib/components/ui/accordion';
 import { Checkbox } from '$lib/components/ui/checkbox';
+import { onMount } from 'svelte';
 
-let { onselect, onexecutemultiple } = $props<{
+let { onselect, onexecutemultiple, connectionId } = $props<{
   onselect: (sql: string) => void;
   onexecutemultiple: (queries: Array<{ title: string, sql: string, description: string }>) => void;
+  connectionId: string;
 }>();
 
 let isOpen = $state(false);
 let selectedItems = $state<Array<{ id: string, title: string, sql: string }>>([]);
+
+// Load saved selections on mount
+onMount(() => {
+  const savedSelections = localStorage.getItem('sql-preset-selections');
+  if (savedSelections) {
+    try {
+      selectedItems = JSON.parse(savedSelections);
+    } catch (e) {
+      console.error('Error loading saved SQL preset selections:', e);
+      selectedItems = [];
+    }
+  }
+});
+
+// Save selections whenever they change
+$effect(() => {
+  if (selectedItems.length === 0) {
+    localStorage.removeItem('sql-preset-selections');
+  } else {
+    localStorage.setItem('sql-preset-selections', JSON.stringify(selectedItems));
+  }
+});
 
 function isSelected(id: string) {
   return selectedItems.some(item => item.id === id);
@@ -75,7 +99,7 @@ function handleExecuteSelected() {
       };
     }));
     isOpen = false;
-    selectedItems = [];
+    // Don't clear selections after execution
   }
 }
 
