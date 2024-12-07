@@ -24,6 +24,25 @@ function getSelectedCountForCategory(categoryItems: any[]) {
   ).length;
 }
 
+function handleGroupSelect(categoryItems: any[], checked: boolean) {
+  if (checked) {
+    // Add all unselected items from the category
+    const newItems = categoryItems
+      .filter(item => !isSelected(item.id))
+      .map(item => ({ id: item.id, title: item.title, sql: item.sql }));
+    selectedItems = [...selectedItems, ...newItems];
+  } else {
+    // Remove all items from this category
+    selectedItems = selectedItems.filter(selected => 
+      !categoryItems.some(item => item.id === selected.id)
+    );
+  }
+}
+
+function isGroupFullySelected(categoryItems: any[]) {
+  return categoryItems.every(item => isSelected(item.id));
+}
+
 function getTotalItems() {
   return Object.values(categories).reduce((total, category) => total + category.items.length, 0);
 }
@@ -84,9 +103,17 @@ const categories = {
         <Accordion.Root type="multiple">
           {#each Object.entries(categories) as [key, category]}
             <Accordion.Item value={key} class="border-b-0">
-              <Accordion.Trigger class="bg-muted/50 hover:bg-muted">
-                <span class="font-semibold">{category.title} ({getSelectedCountForCategory(category.items)}/{category.items.length})</span>
-              </Accordion.Trigger>
+              <div class="flex items-center gap-2 bg-muted/50 hover:bg-muted px-4 py-2">
+                <div onclick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={isGroupFullySelected(category.items)}
+                    onCheckedChange={(checked: boolean) => handleGroupSelect(category.items, checked)}
+                  />
+                </div>
+                <Accordion.Trigger class="flex-1">
+                  <span class="font-semibold">{category.title} ({getSelectedCountForCategory(category.items)}/{category.items.length})</span>
+                </Accordion.Trigger>
+              </div>
               <Accordion.Content>
                 <Accordion.Root type="single" class="px-2">
                   {#each category.items as item}
