@@ -103,10 +103,10 @@ function handleExecuteSelected() {
   }
 }
 
-const categories = {
-  presets: { title: 'SQL Presets', items: presets.presets },
-  schema: { title: 'Schema Queries', items: presets.schema }
-};
+const categories = Object.entries(presets).reduce((acc, [key, category]) => {
+  acc[key] = { title: category.title, items: category.items };
+  return acc;
+}, {} as Record<string, { title: string, items: any[] }>);
 </script>
 
 <div class="flex-1 flex gap-2">
