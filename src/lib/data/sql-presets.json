@@ -127,12 +127,6 @@
         "sql": "SELECT\n  pid,\n  state,\n  sent_lsn,\n  write_lsn,\n  flush_lsn,\n  replay_lsn,\n  sync_priority,\n  sync_state\nFROM\n  pg_stat_replication"
       },
       {
-        "id": "20",
-        "title": "Replication Origin Status",
-        "description": "Shows status of replication origins",
-        "sql": "SELECT\n  *\nFROM\n  pg_replication_origin_status"
-      },
-      {
         "id": "21",
         "title": "Replication Progress",
         "description": "Shows replication progress including lag time",
@@ -149,18 +143,18 @@
         "title": "WAL Generation Rate",
         "description": "Shows current WAL position and file information",
         "sql": "WITH wal_growth AS (\n    SELECT\n        pg_current_wal_lsn() AS current_lsn,\n        pg_current_wal_insert_lsn() AS insert_lsn,\n        pg_walfile_name(pg_current_wal_lsn()) AS current_wal_file,\n        pg_postmaster_start_time()::timestamptz AS start_time\n)\nSELECT\n    current_timestamp::text AS current_time,\n    current_lsn::text,\n    current_wal_file,\n    pg_size_pretty(pg_wal_lsn_diff(\n        current_lsn::pg_lsn,\n        insert_lsn::pg_lsn\n    ))::text AS wal_written,\n    CASE \n        WHEN EXTRACT(EPOCH FROM current_timestamp - start_time) > 0 \n        THEN pg_size_pretty(\n            ROUND(\n                pg_wal_lsn_diff(\n                    current_lsn::pg_lsn,\n                    insert_lsn::pg_lsn\n                )::numeric /\n                NULLIF(EXTRACT(EPOCH FROM current_timestamp - start_time), 0),\n                2\n            )::numeric\n        )::text || '/s'\n        ELSE '0 bytes/s'\n    END AS write_speed\nFROM\n    wal_growth;"
-      },
-      {
-        "id": "24",
-        "title": "Roles",
-        "description": "Shows active connections per role and their limits",
-        "sql": "SELECT\n  rolname,\n  (SELECT count(*)\n   FROM pg_stat_activity\n   WHERE pg_roles.rolname = pg_stat_activity.usename) AS active_connections,\n  CASE\n    WHEN rolconnlimit = -1 THEN current_setting('max_connections')::int8\n    ELSE rolconnlimit\n  END AS connection_limit\nFROM\n  pg_roles\nORDER BY\n  2 DESC"
       }
     ]
   },
   "roles": {
     "title": "Roles",
     "items": [
+      {
+        "id": "24",
+        "title": "Roles",
+        "description": "Shows active connections per role and their limits",
+        "sql": "SELECT\n  rolname,\n  (SELECT count(*)\n   FROM pg_stat_activity\n   WHERE pg_roles.rolname = pg_stat_activity.usename) AS active_connections,\n  CASE\n    WHEN rolconnlimit = -1 THEN current_setting('max_connections')::int8\n    ELSE rolconnlimit\n  END AS connection_limit\nFROM\n  pg_roles\nORDER BY\n  2 DESC"
+      },
       {
         "id": "25",
         "title": "Role Configurations",
@@ -206,7 +200,7 @@
         "id": "31",
         "title": "Constraints",
         "description": "Shows ALTER TABLE statements for all table constraints in the database",
-        "sql": "SELECT\n  'ALTER TABLE ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n  ' ADD CONSTRAINT ' || quote_ident(c.conname) || ' ' ||\n  pg_get_constraintdef(c.oid) || ';' AS query\nFROM\n  pg_constraint c\n  JOIN pg_class t ON c.conrelid = t.oid\n  JOIN pg_namespace n ON n.oid = t.relnamespace\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast');"
+        "sql": "SELECT\n  'ALTER TABLE ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(t.relname) ||\n  ' ADD CONSTRAINT ' || quote_ident(c.conname) || ' ' ||\n  pg_get_constraintdef(c.oid) || ';' AS query\nFROM\n  pg_constraint c\n  JOIN pg_class t ON c.conrelid = t.oid\n  JOIN pg_namespace n ON n.oid = t.relnamespace\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast');"
       },
       {
         "id": "32",
