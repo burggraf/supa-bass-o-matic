@@ -1,0 +1,130 @@
+name: "update-release-links"
+
+on:
+  workflow_run:
+    workflows:
+      - "publish-windows-x86"
+      - "publish-windows-arm"
+      - "publish-ubuntu-x86"
+      - "publish-ubuntu-arm"
+      - "publish-macos-x64"
+      - "publish-macos-arm"
+    types:
+      - completed
+
+jobs:
+  update-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Set environment variables
+        run: |
+          echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+          echo "NAME=$(node -p "require('./package.json').name")" >> $GITHUB_ENV
+
+      - name: Debug workflow info
+        run: |
+          echo "Triggered by workflow: ${{ github.event.workflow_run.name }}"
+          echo "Workflow conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Version from package.json: ${{ env.VERSION }}"
+          echo "Branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Event name: ${{ github.event_name }}"
+          echo "Event path: ${{ github.event.workflow.path }}"
+          echo "Repository: ${{ github.repository }}"
+
+      - name: Wait for all assets
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const maxAttempts = 20;
+            const delaySeconds = 30;
+            const expectedAssets = [
+              '-windows-x86.msi',
+              '-windows-arm.msi',
+              '-ubuntu-x86.deb',
+              '-ubuntu-arm.deb',
+              '-macos-x64.dmg',
+              '-macos-arm.dmg'
+            ];
+            
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              try {
+                console.log(`Attempt ${attempt} to find release...`);
+                const release = await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: `v${process.env.VERSION}`
+                });
+                
+                console.log('Found release. Current assets:', release.data.assets.map(a => a.name));
+                
+                const assets = release.data.assets.map(a => a.name);
+                const missingAssets = expectedAssets.filter(ext => 
+                  !assets.some(a => a.endsWith(ext))
+                );
+                
+                if (missingAssets.length === 0) {
+                  console.log('All assets found!');
+                  break;
+                }
+                
+                console.log(`Missing assets: ${missingAssets.join(', ')}`);
+                if (attempt === maxAttempts) {
+                  throw new Error(`Timed out waiting for assets: ${missingAssets.join(', ')}`);
+                }
+                
+                console.log(`Waiting ${delaySeconds} seconds...`);
+                await new Promise(r => setTimeout(r, delaySeconds * 1000));
+              } catch (error) {
+                console.log('Error:', error.message);
+                if (attempt === maxAttempts) {
+                  throw error;
+                }
+                console.log(`Waiting ${delaySeconds} seconds...`);
+                await new Promise(r => setTimeout(r, delaySeconds * 1000));
+              }
+            }
+
+      - name: Update release body
+        uses: actions/github-script@v6
+        with:
+          script: |
+            console.log('Getting release...');
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: `v${process.env.VERSION}`
+            });
+            
+            console.log('Found release:', release.data.id);
+            
+            const newBody = `## Supa Bass-O-Matic v${process.env.VERSION}
+
+            ### Downloads
+            - Windows (x86): [${process.env.NAME}-${process.env.VERSION}-windows-x86.msi](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-windows-x86.msi)
+            - Windows (ARM): [${process.env.NAME}-${process.env.VERSION}-windows-arm.msi](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-windows-arm.msi)
+            - Ubuntu (x86): [${process.env.NAME}-${process.env.VERSION}-ubuntu-x86.deb](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-ubuntu-x86.deb)
+            - Ubuntu (ARM): [${process.env.NAME}-${process.env.VERSION}-ubuntu-arm.deb](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-ubuntu-arm.deb)
+            - macOS (x64): [${process.env.NAME}-${process.env.VERSION}-macos-x64.dmg](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-macos-x64.dmg)
+            - macOS (ARM): [${process.env.NAME}-${process.env.VERSION}-macos-arm.dmg](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/v${process.env.VERSION}/${process.env.NAME}-${process.env.VERSION}-macos-arm.dmg)`;
+            
+            console.log('Updating release body...');
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              body: newBody
+            });
+            console.log('Release body updated successfully!');

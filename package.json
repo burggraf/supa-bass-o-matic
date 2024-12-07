@@ -1,6 +1,8 @@
 {
 	"name": "supa-bass-o-matic",
-	"version": "0.1.2",
+	"version": "0.4.0",
+	"identifier": "com.supabasecommunity.supabassomatic",
+	"description": "Utilities for Postgres and Supabase",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -45,6 +47,7 @@
 	},
 	"dependencies": {
 		"@tauri-apps/api": "^1.5.0",
-		"pg": "^8.13.1"
+		"pg": "^8.13.1",
+		"sql-formatter": "^15.4.6"
 	}
 }

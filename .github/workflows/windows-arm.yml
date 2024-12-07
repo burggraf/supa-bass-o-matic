@@ -1,0 +1,124 @@
+name: "publish-windows-arm"
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "windows-latest"
+            target: "aarch64-pc-windows-msvc"
+            args: "--target aarch64-pc-windows-msvc"
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set environment variables
+        run: |
+          "VERSION=$(node -p "require('./package.json').version")" >> $env:GITHUB_ENV
+          "NAME=$(node -p "require('./package.json').name")" >> $env:GITHUB_ENV
+          "IDENTIFIER=$(node -p "require('./package.json').identifier")" >> $env:GITHUB_ENV    
+          "DESCRIPTION=$(node -p "require('./package.json').description")" >> $env:GITHUB_ENV
+
+      - name: Check environment variables
+        run: |
+          echo "ENV VERSION: ${{ env.VERSION }}"
+          echo "ENV NAME: ${{ env.NAME }}"
+          echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+
+      - name: Install Windows ARM64 target
+        run: rustup target add aarch64-pc-windows-msvc
+
+      - name: Install ImageMagick
+        run: choco install imagemagick.app -y
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build web assets
+        run: npm run build
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v${{ env.VERSION }}
+          releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
+          releaseBody: ""
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+          distPath: ./build
+          bundleIdentifier: ${{ env.IDENTIFIER }}
+          appName: "${{ env.NAME }}"
+          appVersion: "${{ env.VERSION }}"
+
+      - name: Locate and rename artifact
+        shell: pwsh
+        run: |
+          Get-ChildItem src-tauri\target -Recurse -Filter "*.msi" | ForEach-Object { Move-Item $_.FullName "${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi" }
+
+      - name: Wait for release and retry
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const maxAttempts = 10;
+            const delaySeconds = 30;
+            
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              try {
+                const release = await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: `v${process.env.VERSION}`
+                });
+                console.log(`Found release on attempt ${attempt}`);
+                break;
+              } catch (error) {
+                if (attempt === maxAttempts) {
+                  console.log('Max attempts reached, failing');
+                  throw error;
+                }
+                console.log(`Attempt ${attempt} failed, waiting ${delaySeconds} seconds...`);
+                await new Promise(r => setTimeout(r, delaySeconds * 1000));
+              }
+            }
+
+      - name: Get Release
+        id: get_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-windows-arm.msi
+          asset_content_type: application/x-msi

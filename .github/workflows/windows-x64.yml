@@ -1,0 +1,101 @@
+name: "publish-windows-x86"
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "windows-latest"
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Set environment variables
+        run: |
+          "VERSION=$(node -p "require('./package.json').version")" >> $env:GITHUB_ENV
+          "NAME=$(node -p "require('./package.json').name")" >> $env:GITHUB_ENV
+          "IDENTIFIER=$(node -p "require('./package.json').identifier")" >> $env:GITHUB_ENV    
+          "DESCRIPTION=$(node -p "require('./package.json').description")" >> $env:GITHUB_ENV
+  
+      - name: Check environment variables
+        run: |
+          echo "ENV VERSION: ${{ env.VERSION }}"
+          echo "ENV NAME: ${{ env.NAME }}"
+          echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # This target is only used on macOS runners.
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install ImageMagick
+        run: choco install imagemagick.app -y
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build web assets
+        run: npm run build
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v${{ env.VERSION }}
+          releaseName: "Version ${{ env.VERSION }}"
+          releaseBody: "Release assets are being uploaded..."
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+          distPath: ./build
+          bundleIdentifier: ${{ env.IDENTIFIER }}
+          appName: "${{ env.NAME }}"
+          appVersion: "${{ env.VERSION }}"
+
+      - name: Locate and rename artifact
+        shell: pwsh
+        run: |
+          Get-ChildItem src-tauri\target -Recurse -Filter "*.msi" | ForEach-Object { Move-Item $_.FullName "${{ env.NAME }}-${{ env.VERSION }}-windows-x64.msi" }
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Version ${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          generate_release_notes: true
+          body: |
+            ## Supa Bass-O-Matic v${{ env.VERSION }}
+
+            ### Downloads
+            - Windows (x64): [supa-bass-o-matic-${{ env.VERSION }}-windows-x64.msi](https://github.com/burggraf/supa-bass-o-matic/releases/download/v${{ env.VERSION }}/supa-bass-o-matic-${{ env.VERSION }}-windows-x64.msi)
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-windows-x64.msi
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-windows-x64.msi
+          asset_content_type: application/x-msi

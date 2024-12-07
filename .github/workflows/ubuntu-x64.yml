@@ -1,4 +1,4 @@
-name: "publish-macos-intel"
+name: "publish-ubuntu-x86"
 
 on:
   push:
@@ -15,21 +15,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          #- platform: "macos-latest" # for Arm based macs (M1 and above).
-          #  args: "--target aarch64-apple-darwin"
-          - platform: "macos-latest" # for Intel based macs.
-            args: "--target x86_64-apple-darwin"
-          #- platform: "ubuntu-22.04" # for Tauri v1 you could replace this with ubuntu-20.04.
-          #  args: ""
-          #- platform: "windows-latest"
-          #  args: ""
+          - platform: "ubuntu-22.04" # for Tauri v1 you could replace this with ubuntu-20.04.
+            args: ""
 
     runs-on: ${{ matrix.platform }}
-    env:
-      SUPABASE_URL_ENCRYPTED: ${{ secrets.SUPABASE_URL_ENCRYPTED }}
-      SUPABASE_URL_ENCRYPTION_KEY: ${{ secrets.SUPABASE_URL_ENCRYPTION_KEY }}
-      SUPABASE_ANON_KEY_ENCRYPTED: ${{ secrets.SUPABASE_ANON_KEY_ENCRYPTED }}
-      SUPABASE_ANON_KEY_ENCRYPTION_KEY: ${{ secrets.SUPABASE_ANON_KEY_ENCRYPTION_KEY }}
 
     steps:
       - uses: actions/checkout@v4
@@ -63,8 +52,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-        # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
-        # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
       - name: Install npm dependencies
         run: npm install
@@ -80,10 +67,63 @@ jobs:
           releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
           releaseBody: "See the assets to download this version and install."
           releaseDraft: true
-          prerelease: false
+          prerelease: true
           args: ${{ matrix.args }}
           distPath: ./build
-          bundleIdentifier: com.supabasecommunity.supabassomatic
+          bundleIdentifier: ${{ env.IDENTIFIER }}
           appName: "${{ env.NAME }}"
           appVersion: "${{ env.VERSION }}"
-          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-macos-x64"
+          artifactName: "${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64"
+          artifactPaths: |
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.AppImage
+
+      - name: Locate and rename artifact
+        run: |
+          find src-tauri/target -name "*.deb" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb \;
+
+      - name: Wait for release and retry
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const maxAttempts = 10;
+            const delaySeconds = 30;
+            
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              try {
+                const release = await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: `v${process.env.VERSION}`
+                });
+                console.log(`Found release on attempt ${attempt}`);
+                break;
+              } catch (error) {
+                if (attempt === maxAttempts) {
+                  console.log('Max attempts reached, failing');
+                  throw error;
+                }
+                console.log(`Attempt ${attempt} failed, waiting ${delaySeconds} seconds...`);
+                await new Promise(r => setTimeout(r, delaySeconds * 1000));
+              }
+            }
+
+      - name: Get Release
+        id: get_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-x64.deb
+          asset_content_type: application/vnd.debian.binary-package

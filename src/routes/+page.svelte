@@ -10,6 +10,7 @@
     import * as Accordion from "$lib/components/ui/accordion";
     import { Trash2, Check, Plus, Pencil } from "lucide-svelte";
     import SqlPresets from "$lib/components/sql-presets.svelte";
+    import { format } from 'sql-formatter';
 
     interface Connection {
         title: string;
@@ -25,7 +26,12 @@
         title: string;
         description: string;
         result: { columns: string[], rows: string[][] };
+        sortConfig?: {
+            column: number | null;
+            direction: 'asc' | 'desc';
+        };
     }>>([]);
+    let openItems: string[] = [];
     let error = $state<string | null>(null);
     let debugOutput = $state<string[]>([]);
     let isLoading = $state(false);
@@ -34,7 +40,6 @@
     let isEditing = $state(false);
     let isDebugVisible = $state(false);
     let selectRef: { close: () => void } | null = $state(null);
-    let openItems = $state<string[]>([]);
 
     // Format cell value based on column type and content
     function formatCellValue(value: any, columnName: string): string {
@@ -44,6 +49,17 @@
         switch (columnName.toLowerCase()) {
             case 'transactionid':
                 return value.toString();
+            case 'query':
+            try {
+                    const formatted = format(value.toString(), {
+                        language: 'postgresql',
+                        uppercase: true,
+                        indentWidth: 2
+                    });
+                    return `<pre class="whitespace-pre font-mono text-sm">${formatted}</pre>`;
+                } catch (e) {
+                    return value.toString();
+                }
             default:
                 return value.toString();
         }
@@ -204,6 +220,46 @@
         }
     }
 
+    function toggleSort(resultIndex: number, columnIndex: number) {
+        const result = queryResults[resultIndex];
+        if (!result.sortConfig) {
+            result.sortConfig = {
+                column: null,
+                direction: 'asc'
+            };
+        }
+
+        if (result.sortConfig.column === columnIndex) {
+            // Toggle direction if clicking the same column
+            result.sortConfig.direction = result.sortConfig.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            // New column, set to ascending
+            result.sortConfig.column = columnIndex;
+            result.sortConfig.direction = 'asc';
+        }
+        
+        // Sort only this specific result's rows
+        const sortedRows = [...result.result.rows].sort((a, b) => {
+            const aVal = a[columnIndex];
+            const bVal = b[columnIndex];
+            
+            // Handle different types of values
+            const compare = 
+                typeof aVal === 'number' && typeof bVal === 'number' 
+                    ? aVal - bVal
+                    : String(aVal).localeCompare(String(bVal));
+            
+            return result.sortConfig!.direction === 'asc' ? compare : -compare;
+        });
+
+        // Update only this specific result
+        queryResults = queryResults.map((r, index) => 
+            index === resultIndex 
+                ? { ...r, result: { ...r.result, rows: sortedRows } }
+                : r
+        );
+    }
+
     $effect(() => {
         // console.log('selectedConnection changed:', selectedConnection);
     });
@@ -309,6 +365,7 @@
                                 }
                                 isLoading = false;
                             }}
+                            connectionId={selectedConnection?.title ?? ''}
                         />
                         <Textarea
                             bind:value={sqlQuery}
@@ -355,7 +412,7 @@
                     <div class="mt-4">
                         <h2 class="text-2xl font-semibold mb-4">Results</h2>
                         <Accordion.Root type="multiple" value={openItems} class="space-y-2">
-                            {#each queryResults as result}
+                            {#each queryResults as result, resultIndex}
                                 <Accordion.Item value={result.title} class="border rounded-lg overflow-hidden">
                                     <Accordion.Trigger class="w-full bg-muted hover:bg-muted/80 p-4">
                                         <div class="text-left">
@@ -370,8 +427,20 @@
                                             <Table.Root>
                                                 <Table.Header>
                                                     <Table.Row>
-                                                        {#each result.result.columns as column}
-                                                            <Table.Head>{column}</Table.Head>
+                                                        {#each result.result.columns as column, columnIndex}
+                                                            <Table.Head 
+                                                                onclick={() => toggleSort(resultIndex, columnIndex)}
+                                                                class="cursor-pointer hover:bg-gray-100"
+                                                            >
+                                                                <div class="flex items-center gap-1">
+                                                                    {column}
+                                                                    {#if result.sortConfig?.column === columnIndex}
+                                                                        <span class="text-xs">
+                                                                            {result.sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                                                        </span>
+                                                                    {/if}
+                                                                </div>
+                                                            </Table.Head>
                                                         {/each}
                                                     </Table.Row>
                                                 </Table.Header>
@@ -380,7 +449,7 @@
                                                         <Table.Row>
                                                             {#each row as cell, i}
                                                                 <Table.Cell>
-                                                                    {formatCellValue(cell, result.result.columns[i])}
+                                                                    {@html formatCellValue(cell, result.result.columns[i])}
                                                                 </Table.Cell>
                                                             {/each}
                                                         </Table.Row>

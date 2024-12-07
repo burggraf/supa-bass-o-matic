@@ -1,0 +1,142 @@
+name: "publish-macos-x64"
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest"
+            args: "--target x86_64-apple-darwin"
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Set environment variables
+        run: |
+          echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+          echo "NAME=$(node -p "require('./package.json').name")" >> $GITHUB_ENV
+          echo "IDENTIFIER=$(node -p "require('./package.json').identifier")" >> $GITHUB_ENV
+          echo "DESCRIPTION=$(node -p "require('./package.json').description")" >> $GITHUB_ENV
+
+      - name: Check environment variables
+        run: |
+          echo "ENV VERSION: ${{ env.VERSION }}"
+          echo "ENV NAME: ${{ env.NAME }}"
+          echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build web assets
+        run: npm run build
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v${{ env.VERSION }}
+          releaseName: "Version ${{ env.VERSION }}"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+          distPath: ./build
+          bundleIdentifier: ${{ env.IDENTIFIER }}
+          appName: "${{ env.NAME }}"
+          appVersion: "${{ env.VERSION }}"
+
+      - name: Install create-dmg
+        run: |
+          brew install create-dmg
+
+      - name: Create DMG
+        run: |
+          APP_PATH="src-tauri/target/x86_64-apple-darwin/release/bundle/macos/supa-bass-o-matic.app"
+          DMG_NAME="${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg"
+          
+          if [ -d "$APP_PATH" ]; then
+            echo "Creating DMG from $APP_PATH"
+            create-dmg \
+              --volname "Supa Bass-O-Matic" \
+              --window-pos 200 120 \
+              --window-size 600 300 \
+              --icon-size 100 \
+              --icon "supa-bass-o-matic.app" 175 120 \
+              --hide-extension "supa-bass-o-matic.app" \
+              --app-drop-link 425 120 \
+              "./$DMG_NAME" \
+              "$APP_PATH"
+            
+            echo "Successfully created DMG file"
+          else
+            echo "Error: .app file not found at $APP_PATH"
+            ls -R src-tauri/target/x86_64-apple-darwin/release/bundle || true
+            exit 1
+          fi
+
+      - name: Wait for release and retry
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const maxAttempts = 10;
+            const delaySeconds = 30;
+            
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              try {
+                const release = await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: `v${process.env.VERSION}`
+                });
+                console.log(`Found release on attempt ${attempt}`);
+                break;
+              } catch (error) {
+                if (attempt === maxAttempts) {
+                  console.log('Max attempts reached, failing');
+                  throw error;
+                }
+                console.log(`Attempt ${attempt} failed, waiting ${delaySeconds} seconds...`);
+                await new Promise(r => setTimeout(r, delaySeconds * 1000));
+              }
+            }
+
+      - name: Get Release
+        id: get_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-macos-x64.dmg
+          asset_content_type: application/x-apple-diskimage

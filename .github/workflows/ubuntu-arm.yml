@@ -5,8 +5,6 @@ on:
     branches:
       - release
 
-# This workflow will trigger on each push to the `release` branch to create or update a GitHub release, build your app, and upload the artifacts to the release.
-
 jobs:
   publish-tauri:
     permissions:
@@ -17,20 +15,8 @@ jobs:
         include:
           - platform: "ubuntu-22.04"
             args: "--target aarch64-unknown-linux-gnu"
-          #- platform: "macos-latest" # for Arm based macs (M1 and above).
-          #  args: "--target aarch64-apple-darwin"
-          #- platform: "macos-latest" # for Intel based macs.
-          #  args: "--target x86_64-apple-darwin"
-          #- platform: "windows-latest"
-          #  args: ""
 
     runs-on: ${{ matrix.platform }}
-    # Add environment variables here
-    env:
-      SUPABASE_URL_ENCRYPTED: ${{ secrets.SUPABASE_URL_ENCRYPTED }}
-      SUPABASE_URL_ENCRYPTION_KEY: ${{ secrets.SUPABASE_URL_ENCRYPTION_KEY }}
-      SUPABASE_ANON_KEY_ENCRYPTED: ${{ secrets.SUPABASE_ANON_KEY_ENCRYPTED }}
-      SUPABASE_ANON_KEY_ENCRYPTION_KEY: ${{ secrets.SUPABASE_ANON_KEY_ENCRYPTION_KEY }}
 
     steps:
       - uses: actions/checkout@v4
@@ -111,29 +97,16 @@ jobs:
 
       - name: Set environment variables
         run: |
-          echo "package.json contents:"
-          cat package.json
-          echo "**************"
-          echo "setting env variables"
           echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
           echo "NAME=$(node -p "require('./package.json').name")" >> $GITHUB_ENV
           echo "IDENTIFIER=$(node -p "require('./package.json').identifier")" >> $GITHUB_ENV    
           echo "DESCRIPTION=$(node -p "require('./package.json').description")" >> $GITHUB_ENV
-          export VERSION=$(node -p "require('./package.json').version")
-          export NAME=$(node -p "require('./package.json').name")
-          export IDENTIFIER=$(node -p "require('./package.json').identifier")
-          export DESCRIPTION=$(node -p "require('./package.json').description")
-          echo "Shell VERSION: $VERSION"
-          echo "Shell NAME: $NAME"
-          echo "Shell IDENTIFIER: $IDENTIFIER"
-          echo "Shell DESCRIPTION: $DESCRIPTION"
+
       - name: Check environment variables
         run: |
           echo "ENV VERSION: ${{ env.VERSION }}"
           echo "ENV NAME: ${{ env.NAME }}"
           echo "ENV IDENTIFIER: ${{ env.IDENTIFIER }}"
-          echo "Computed VERSION: $(node -p "require('./package.json').version")"
-          echo "Computed NAME: $(node -p "require('./package.json').name")"
 
       - name: Configure ARM64 build
         if: matrix.platform == 'ubuntu-22.04'
@@ -226,29 +199,63 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: supa-bass-o-matic-0.1.0
-          releaseName: "Supa Bass-O-Matic 0.1.0"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
+          tagName: v${{ env.VERSION }}
+          releaseName: "${{ env.NAME }} ${{ env.VERSION }}"
+          releaseBody: ""
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
-          artifactName: "supa-bass-o-matic-0.1.0-ubuntu-arm"
           distPath: ./build
-          bundleIdentifier: com.supabasecommunity.supabassomatic
-          appName: "supa-bass-o-matic"
-          appVersion: "0.1.0"
-          artifactPaths: |
-            src-tauri/target/release/bundle/**/*.deb*
-            src-tauri/target/release/bundle/**/*.rpm*
-            src-tauri/target/release/bundle/**/*.AppImage*
+          bundleIdentifier: ${{ env.IDENTIFIER }}
+          appName: "${{ env.NAME }}"
+          appVersion: "${{ env.VERSION }}"
 
-      - name: List build directory
-        if: success()
-        shell: bash
+      - name: Locate and rename artifact
         run: |
-          if [ -d "src-tauri/target/release/bundle/" ]; then
-            echo "Listing target directory contents:"
-            ls -R src-tauri/target/release/bundle/
-          else
-            echo "Bundle directory does not exist"
-          fi
+          find src-tauri/target -name "*.deb" -exec mv {} ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb \;
+
+      - name: Wait for release and retry
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const maxAttempts = 10;
+            const delaySeconds = 30;
+            
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              try {
+                const release = await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: `v${process.env.VERSION}`
+                });
+                console.log(`Found release on attempt ${attempt}`);
+                break;
+              } catch (error) {
+                if (attempt === maxAttempts) {
+                  console.log('Max attempts reached, failing');
+                  throw error;
+                }
+                console.log(`Attempt ${attempt} failed, waiting ${delaySeconds} seconds...`);
+                await new Promise(r => setTimeout(r, delaySeconds * 1000));
+              }
+            }
+
+      - name: Get Release
+        id: get_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: ./${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb
+          asset_name: ${{ env.NAME }}-${{ env.VERSION }}-ubuntu-arm.deb
+          asset_content_type: application/vnd.debian.binary-package
