@@ -18,6 +18,16 @@ function isSelected(id: string) {
   return selectedItems.some(item => item.id === id);
 }
 
+function getSelectedCountForCategory(categoryItems: any[]) {
+  return selectedItems.filter(selected => 
+    categoryItems.some(item => item.id === selected.id)
+  ).length;
+}
+
+function getTotalItems() {
+  return Object.values(categories).reduce((total, category) => total + category.items.length, 0);
+}
+
 function handlePresetSelect(id: string, title: string, sql: string, checked: boolean) {
   console.log('handlePresetSelect', { id, title, checked, currentSelected: selectedItems });
   
@@ -64,9 +74,9 @@ const categories = {
   <Dialog.Dialog bind:open={isOpen}>
     <Dialog.DialogContent class="max-w-4xl">
       <Dialog.DialogHeader>
-        <Dialog.DialogTitle>SQL Presets</Dialog.DialogTitle>
+        <Dialog.DialogTitle>SQL Presets ({selectedItems.length} of {getTotalItems()} selected)</Dialog.DialogTitle>
         <Dialog.DialogDescription>
-          Select one or more SQL queries to execute
+          Choose from predefined SQL queries to explore and analyze your data
         </Dialog.DialogDescription>
       </Dialog.DialogHeader>
 
@@ -75,7 +85,7 @@ const categories = {
           {#each Object.entries(categories) as [key, category]}
             <Accordion.Item value={key} class="border-b-0">
               <Accordion.Trigger class="bg-muted/50 hover:bg-muted">
-                <span class="font-semibold">{category.title}</span>
+                <span class="font-semibold">{category.title} ({getSelectedCountForCategory(category.items)}/{category.items.length})</span>
               </Accordion.Trigger>
               <Accordion.Content>
                 <Accordion.Root type="single" class="px-2">
