@@ -81,20 +81,18 @@ const categories = {
                 <Accordion.Root type="single" class="px-2">
                   {#each category.items as item}
                     <Accordion.Item value={item.id}>
-                      <div class="flex items-center px-4 py-2">
-                        <div onclick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={isSelected(item.id)}
-                            onCheckedChange={(checked: boolean) => {
-                              handlePresetSelect(item.id, item.title, item.sql, checked);
-                            }}
-                            class="mr-2"
-                          />
-                        </div>
+                      <button onclick={(e) => e.stopPropagation()} class="flex items-center px-4 py-2">
+                        <Checkbox
+                          checked={isSelected(item.id)}
+                          onCheckedChange={(checked: boolean) => {
+                            handlePresetSelect(item.id, item.title, item.sql, checked);
+                          }}
+                          class="mr-2"
+                        />
                         <Accordion.Trigger class="flex-1 text-left">
                           <span class="font-medium">{item.title}</span>
                         </Accordion.Trigger>
-                      </div>
+                      </button>
                       <Accordion.Content class="-mt-4">
                         <div class="pb-4">
                           <p class="text-sm text-muted-foreground mb-2">{item.description}</p>
