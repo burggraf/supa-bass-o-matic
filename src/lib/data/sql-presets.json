@@ -15,19 +15,19 @@
         "sql": "SELECT\n  pg_stat_activity.pid,\n  COALESCE(pg_class.relname, 'null') AS relname,\n  COALESCE(pg_locks.transactionid::text, 'null') AS transactionid,\n  pg_locks.granted,\n  pg_stat_activity.query,\n  age(now(), pg_stat_activity.query_start)::text AS age\nFROM\n  pg_stat_activity,\n  pg_locks\n  LEFT OUTER JOIN pg_class ON (pg_locks.relation = pg_class.oid)\nWHERE\n  pg_stat_activity.query <> '<insufficient privilege>'\n  AND pg_locks.pid = pg_stat_activity.pid\n  AND pg_locks.mode = 'ExclusiveLock'\nORDER BY\n  query_start"
       },
       {
-        "id": "4",
+        "id": "3",
         "title": "Blocking Queries",
         "description": "Shows queries that are blocking other queries",
         "sql": "SELECT\n  bl.pid AS blocked_pid,\n  ka.query AS blocking_statement,\n  age(now(), ka.query_start)::text AS blocking_duration,\n  kl.pid AS blocking_pid,\n  a.query AS blocked_statement,\n  age(now(), a.query_start)::text AS blocked_duration\nFROM\n  pg_catalog.pg_locks bl\n  JOIN pg_catalog.pg_stat_activity a ON bl.pid = a.pid\n  JOIN pg_catalog.pg_locks kl\n  JOIN pg_catalog.pg_stat_activity ka ON kl.pid = ka.pid\n    ON bl.transactionid = kl.transactionid\n    AND bl.pid != kl.pid\nWHERE\n  NOT bl.granted"
       },
       {
-        "id": "9",
+        "id": "4",
         "title": "Query Outliers",
         "description": "Shows queries that have taken the most time to execute",
         "sql": "SELECT\n  (interval '1 millisecond' * total_exec_time)::text AS total_exec_time,\n  to_char((total_exec_time/sum(total_exec_time) OVER()) * 100, 'FM90D0') || '%' AS prop_exec_time,\n  to_char(calls, 'FM999G999G999G990') AS ncalls,\n  (interval '1 millisecond' * (blk_read_time + blk_write_time))::text AS sync_io_time,\n  query\nFROM\n  pg_stat_statements\nWHERE\n  userid = (SELECT usesysid FROM pg_user WHERE usename = current_user LIMIT 1)\nORDER BY\n  total_exec_time DESC\nLIMIT 10"
       },
       {
-        "id": "16",
+        "id": "5",
         "title": "Long Running Queries",
         "description": "Shows currently running queries that have been running for a long time",
         "sql": "SELECT\n  pid,\n  age(clock_timestamp(), query_start) AS duration,\n  query\nFROM\n  pg_stat_activity\nWHERE\n  query != '<IDLE>'\n  AND query NOT ILIKE '%pg_stat_activity%'\n  AND state != 'idle'\n  AND state = 'active'\nORDER BY\n  duration DESC"
@@ -38,13 +38,13 @@
     "title": "Table & Index Optimization",
     "items": [
       {
-        "id": "13",
+        "id": "6",
         "title": "Total Table Sizes",
         "description": "Shows the total size of tables including indexes and toast data",
         "sql": "SELECT\n  n.nspname AS schema,\n  c.relname AS name,\n  pg_size_pretty(pg_total_relation_size(c.oid)) AS size\nFROM\n  pg_class c\n  LEFT JOIN pg_namespace n ON (n.oid = c.relnamespace)\nWHERE\n  NOT n.nspname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\n  AND c.relkind = 'r'\nORDER BY\n  pg_total_relation_size(c.oid) DESC"
       },
       {
-        "id": "11",
+        "id": "7",
         "title": "Table Record Counts",
         "description": "Shows estimated record counts for all tables",
         "sql": "SELECT\n  schemaname AS schema,\n  relname AS name,\n  n_live_tup AS estimated_count\nFROM\n  pg_stat_user_tables\nWHERE\n  NOT schemaname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\nORDER BY\n  n_live_tup DESC"
@@ -56,31 +56,31 @@
         "sql": "WITH constants AS (\n  SELECT current_setting('block_size')::numeric AS bs, 23 AS hdr, 4 AS ma\n), bloat_info AS (\n  SELECT\n    ma,bs,schemaname,tablename,\n    (datawidth+(hdr+ma-(case when hdr%ma=0 THEN ma ELSE hdr%ma END)))::numeric AS datahdr,\n    (maxfracsum*(nullhdr+ma-(case when nullhdr%ma=0 THEN ma ELSE nullhdr%ma END))) AS nullhdr2\n  FROM (\n    SELECT\n      schemaname, tablename, hdr, ma, bs,\n      SUM((1-null_frac)*avg_width) AS datawidth,\n      MAX(null_frac) AS maxfracsum,\n      hdr+(\n        SELECT 1+count(*)/8\n        FROM pg_stats s2\n        WHERE null_frac<>0 AND s2.schemaname = s.schemaname AND s2.tablename = s.tablename\n      ) AS nullhdr\n    FROM pg_stats s, constants\n    GROUP BY 1,2,3,4,5\n  ) AS foo\n), table_bloat AS (\n  SELECT\n    schemaname, tablename, cc.relpages, bs,\n    CEIL((cc.reltuples*((datahdr+ma-\n      (CASE WHEN datahdr%ma=0 THEN ma ELSE datahdr%ma END))+nullhdr2+4))/(bs-20::float)) AS otta\n  FROM bloat_info\n  JOIN pg_class cc ON cc.relname = bloat_info.tablename\n  JOIN pg_namespace nn ON cc.relnamespace = nn.oid AND nn.nspname = bloat_info.schemaname AND nn.nspname <> 'information_schema'\n), index_bloat AS (\n  SELECT\n    schemaname, tablename, bs,\n    COALESCE(c2.relname,'?') AS iname, COALESCE(c2.reltuples,0) AS ituples, COALESCE(c2.relpages,0) AS ipages,\n    COALESCE(CEIL((c2.reltuples*(datahdr-12))/(bs-20::float)),0) AS iotta -- very rough approximation, assumes all cols\n  FROM bloat_info\n  JOIN pg_class cc ON cc.relname = bloat_info.tablename\n  JOIN pg_namespace nn ON cc.relnamespace = nn.oid AND nn.nspname = bloat_info.schemaname AND nn.nspname <> 'information_schema'\n  JOIN pg_index i ON indrelid = cc.oid\n  JOIN pg_class c2 ON c2.oid = i.indexrelid\n)\nSELECT\n  type, schemaname, object_name, bloat, pg_size_pretty(raw_waste) as waste\nFROM\n(SELECT\n  'table' as type,\n  schemaname,\n  tablename as object_name,\n  ROUND(CASE WHEN otta=0 THEN 0.0 ELSE table_bloat.relpages/otta::numeric END,1) AS bloat,\n  CASE WHEN relpages < otta THEN '0' ELSE (bs*(table_bloat.relpages-otta)::bigint)::bigint END AS raw_waste\nFROM\n  table_bloat\n    UNION\nSELECT\n  'index' as type,\n  schemaname,\n  tablename || '::' || iname as object_name,\n  ROUND(CASE WHEN iotta=0 OR ipages=0 THEN 0.0 ELSE ipages/iotta::numeric END,1) AS bloat,\n  CASE WHEN ipages < iotta THEN '0' ELSE (bs*(ipages-iotta))::bigint END AS raw_waste\nFROM\n  index_bloat) bloat_summary\nWHERE schemaname NOT IN ('pg_catalog', 'information_schema')\nORDER BY raw_waste DESC, bloat DESC;"
       },
       {
-        "id": "10",
+        "id": "9",
         "title": "Index Sizes",
         "description": "Shows the size of all indexes in the database",
         "sql": "SELECT\n  n.nspname || '.' || c.relname AS name,\n  pg_size_pretty(sum(c.relpages::bigint*8192)::bigint) AS size\nFROM\n  pg_class c\n  LEFT JOIN pg_namespace n ON (n.oid = c.relnamespace)\nWHERE\n  NOT n.nspname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\n  AND c.relkind = 'i'\nGROUP BY\n  n.nspname, c.relname\nORDER BY\n  sum(c.relpages) DESC"
       },
       {
-        "id": "5",
+        "id": "10",
         "title": "Index Usage Stats",
         "description": "Shows how often indexes are used for each table",
         "sql": "SELECT\n  schemaname || '.' || relname AS name,\n  CASE\n    WHEN idx_scan IS NULL THEN 'Insufficient data'\n    WHEN idx_scan = 0 THEN 'Insufficient data'\n    ELSE ROUND(100.0 * idx_scan / (seq_scan + idx_scan), 1) || '%'\n  END percent_of_times_index_used,\n  n_live_tup rows_in_table\nFROM\n  pg_stat_user_tables\nWHERE\n  NOT schemaname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\nORDER BY\n  CASE\n    WHEN idx_scan is null THEN 1\n    WHEN idx_scan = 0 THEN 1\n    ELSE 0\n  END,\n  n_live_tup DESC"
       },
       {
-        "id": "3",
+        "id": "11",
         "title": "Cache Hit Rates",
         "description": "Shows cache hit rates for indexes and tables",
         "sql": "SELECT\n  'index hit rate' AS name,\n  (sum(idx_blks_hit)) / nullif(sum(idx_blks_hit + idx_blks_read), 0) AS ratio\nFROM\n  pg_statio_user_indexes\nUNION ALL\nSELECT\n  'table hit rate' AS name,\n  sum(heap_blks_hit) / nullif(sum(heap_blks_hit) + sum(heap_blks_read), 0) AS ratio\nFROM\n  pg_statio_user_tables"
       },
       {
-        "id": "14",
+        "id": "12",
         "title": "Sequential Scans",
         "description": "Shows tables that are being sequentially scanned (potential missing indexes)",
         "sql": "SELECT\n  schemaname || '.' || relname AS name,\n  seq_scan as count\nFROM\n  pg_stat_user_tables\nWHERE\n  NOT schemaname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\nORDER BY\n  seq_scan DESC"
       },
       {
-        "id": "6",
+        "id": "13",
         "title": "Unused Indexes",
         "description": "Shows potentially unused indexes that might be candidates for removal",
         "sql": "SELECT\n  schemaname || '.' || relname AS table,\n  indexrelname AS index,\n  pg_size_pretty(pg_relation_size(i.indexrelid)) AS index_size,\n  idx_scan as index_scans\nFROM\n  pg_stat_user_indexes ui\n  JOIN pg_index i ON ui.indexrelid = i.indexrelid\nWHERE\n  NOT indisunique\n  AND idx_scan < 50\n  AND pg_relation_size(relid) > 5 * 8192\n  AND NOT schemaname LIKE ANY(ARRAY['pg_catalog', 'information_schema'])\nORDER BY\n  pg_relation_size(i.indexrelid) / nullif(idx_scan, 0) DESC NULLS FIRST,\n  pg_relation_size(i.indexrelid) DESC"
@@ -91,10 +91,70 @@
     "title": "Replication",
     "items": [
       {
-        "id": "12",
+        "id": "14",
         "title": "Replication Slots",
         "description": "Shows information about replication slots and their lag",
         "sql": "SELECT\n  s.slot_name,\n  s.active,\n  COALESCE(r.state, 'N/A') as state,\n  CASE\n    WHEN r.client_addr IS NULL THEN 'N/A'\n    ELSE r.client_addr::text\n  END replication_client_address,\n  GREATEST(0, ROUND((redo_lsn-restart_lsn)/1024/1024/1024, 2)) as replication_lag_gb\nFROM\n  pg_control_checkpoint(),\n  pg_replication_slots s\n  LEFT JOIN pg_stat_replication r ON (r.pid = s.active_pid)"
+      },
+      {
+        "id": "15",
+        "title": "Replication Status",
+        "description": "Shows detailed status of all replication connections",
+        "sql": "SELECT\n  client_addr,\n  state,\n  sent_lsn,\n  write_lsn,\n  flush_lsn,\n  replay_lsn,\n  (extract(epoch from now() - pg_last_xact_replay_timestamp()))::int as replay_lag_seconds\nFROM\n  pg_stat_replication"
+      },
+      {
+        "id": "16",
+        "title": "WAL Files",
+        "description": "Shows information about WAL files and their status",
+        "sql": "SELECT\n  name,\n  size,\n  modification as last_modified\nFROM\n  pg_ls_waldir()\nORDER BY\n  modification DESC\nLIMIT 10"
+      },
+      {
+        "id": "17",
+        "title": "Replication Slot Details",
+        "description": "Shows detailed information about replication slots including WAL retention",
+        "sql": "SELECT\n  slot_name,\n  plugin,\n  slot_type,\n  database,\n  active,\n  pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)::bigint) as retained_wal_size\nFROM\n  pg_replication_slots"
+      },
+      {
+        "id": "18",
+        "title": "WAL Receiver Status",
+        "description": "Shows status of WAL receiver process on standby servers",
+        "sql": "SELECT\n    status,\n    receive_start_lsn,\n    receive_start_tli,\n    written_lsn,\n    flushed_lsn,\n    received_tli,\n    last_msg_send_time,\n    last_msg_receipt_time,\n    latest_end_lsn,\n    latest_end_time,\n    slot_name,\n    sender_host,\n    sender_port,\n    conninfo\nFROM\n    pg_stat_wal_receiver;"
+      },
+      {
+        "id": "19",
+        "title": "WAL Sender Status",
+        "description": "Shows status of WAL sender processes",
+        "sql": "SELECT\n  pid,\n  state,\n  sent_lsn,\n  write_lsn,\n  flush_lsn,\n  replay_lsn,\n  sync_priority,\n  sync_state\nFROM\n  pg_stat_replication"
+      },
+      {
+        "id": "20",
+        "title": "Replication Origin Status",
+        "description": "Shows status of replication origins",
+        "sql": "SELECT\n  *\nFROM\n  pg_replication_origin_status"
+      },
+      {
+        "id": "21",
+        "title": "Replication Progress",
+        "description": "Shows replication progress including lag time",
+        "sql": "SELECT\n  application_name,\n  client_addr,\n  state,\n  sync_state,\n  pg_wal_lsn_diff(pg_current_wal_lsn(), sent_lsn) as send_lag_bytes,\n  pg_wal_lsn_diff(sent_lsn, write_lsn) as write_lag_bytes,\n  pg_wal_lsn_diff(write_lsn, flush_lsn) as flush_lag_bytes,\n  pg_wal_lsn_diff(flush_lsn, replay_lsn) as replay_lag_bytes\nFROM\n  pg_stat_replication"
+      },
+      {
+        "id": "22",
+        "title": "Standby Replication Lag",
+        "description": "Shows replication lag on standby servers in seconds",
+        "sql": "SELECT\n  application_name,\n  client_addr,\n  EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())) AS lag_seconds\nFROM\n  pg_stat_replication"
+      },
+      {
+        "id": "23",
+        "title": "WAL Generation Rate",
+        "description": "Shows current WAL position and file information",
+        "sql": "WITH wal_growth AS (\n    SELECT\n        pg_current_wal_lsn() AS current_lsn,\n        pg_current_wal_insert_lsn() AS insert_lsn,\n        pg_walfile_name(pg_current_wal_lsn()) AS current_wal_file,\n        pg_postmaster_start_time()::timestamptz AS start_time\n)\nSELECT\n    current_timestamp::text AS current_time,\n    current_lsn::text,\n    current_wal_file,\n    pg_size_pretty(pg_wal_lsn_diff(\n        current_lsn::pg_lsn,\n        insert_lsn::pg_lsn\n    ))::text AS wal_written,\n    CASE \n        WHEN EXTRACT(EPOCH FROM current_timestamp - start_time) > 0 \n        THEN pg_size_pretty(\n            ROUND(\n                pg_wal_lsn_diff(\n                    current_lsn::pg_lsn,\n                    insert_lsn::pg_lsn\n                )::numeric /\n                NULLIF(EXTRACT(EPOCH FROM current_timestamp - start_time), 0),\n                2\n            )::numeric\n        )::text || '/s'\n        ELSE '0 bytes/s'\n    END AS write_speed\nFROM\n    wal_growth;"
+      },
+      {
+        "id": "24",
+        "title": "Roles",
+        "description": "Shows active connections per role and their limits",
+        "sql": "SELECT\n  rolname,\n  (SELECT count(*)\n   FROM pg_stat_activity\n   WHERE pg_roles.rolname = pg_stat_activity.usename) AS active_connections,\n  CASE\n    WHEN rolconnlimit = -1 THEN current_setting('max_connections')::int8\n    ELSE rolconnlimit\n  END AS connection_limit\nFROM\n  pg_roles\nORDER BY\n  2 DESC"
       }
     ]
   },
@@ -102,13 +162,7 @@
     "title": "Roles",
     "items": [
       {
-        "id": "7",
-        "title": "Role Connections",
-        "description": "Shows active connections per role and their limits",
-        "sql": "SELECT\n  rolname,\n  (SELECT count(*)\n   FROM pg_stat_activity\n   WHERE pg_roles.rolname = pg_stat_activity.usename) AS active_connections,\n  CASE\n    WHEN rolconnlimit = -1 THEN current_setting('max_connections')::int8\n    ELSE rolconnlimit\n  END AS connection_limit\nFROM\n  pg_roles\nORDER BY\n  2 DESC"
-      },
-      {
-        "id": "15",
+        "id": "25",
         "title": "Role Configurations",
         "description": "Shows custom configurations set for database roles",
         "sql": "SELECT\n  rolname as role_name,\n  array_to_string(rolconfig, ',', '*') as custom_config\nFROM\n  pg_roles\nWHERE\n  rolconfig is not null"
@@ -119,175 +173,175 @@
     "title": "Schema Queries",
     "items": [
       {
-        "id": "17",
+        "id": "26",
         "title": "Tables",
         "description": "Shows CREATE TABLE statements for all tables in the database",
         "sql": "SELECT\n    'CREATE TABLE ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) || ' (\n' ||\n    array_to_string(\n        array_agg(\n            '    ' || quote_ident(a.attname) || ' ' ||\n            pg_catalog.format_type(a.atttypid, a.atttypmod) ||\n            CASE\n                WHEN a.attnotnull THEN ' NOT NULL'\n                ELSE ''\n            END ||\n            CASE\n                WHEN a.atthasdef THEN ' DEFAULT ' || pg_get_expr(d.adbin, d.adrelid)\n                ELSE ''\n            END\n        ),\n        ',\n'\n    ) ||\n    '\n);' AS query\nFROM\n    pg_class c\n    JOIN pg_namespace n ON c.relnamespace = n.oid\n    JOIN pg_attribute a ON c.oid = a.attrelid\n    LEFT JOIN pg_attrdef d ON (a.attrelid, a.attnum) = (d.adrelid, d.adnum)\nWHERE\n    c.relkind = 'r'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND a.attnum > 0\n    AND NOT a.attisdropped\nGROUP BY\n    n.nspname, c.relname\nORDER BY\n    n.nspname, c.relname;"
       },
       {
-        "id": "18",
+        "id": "27",
         "title": "Functions",
         "description": "Shows CREATE FUNCTION statements for all functions in the database",
         "sql": "SELECT\n  pg_get_functiondef(p.oid) as query\nFROM\n  pg_proc p\n  JOIN pg_namespace n ON p.pronamespace = n.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND p.prokind = 'f'\nORDER BY\n  n.nspname, p.proname;"
       },
       {
-        "id": "19",
+        "id": "28",
         "title": "Procedures",
         "description": "Shows CREATE PROCEDURE statements for all procedures in the database",
         "sql": "SELECT\n  pg_get_functiondef(p.oid) as query\nFROM\n  pg_proc p\n  JOIN pg_namespace n ON p.pronamespace = n.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND p.prokind = 'p'\nORDER BY\n  n.nspname, p.proname;"
       },
       {
-        "id": "20",
+        "id": "29",
         "title": "Aggregates",
         "description": "Shows CREATE AGGREGATE statements for all aggregates in the database",
-        "sql": "SELECT \n    'CREATE AGGREGATE ' || quote_ident(n.nspname) || '.' || quote_ident(p.proname) ||\n    '(' || \n    CASE \n        WHEN a.aggnumdirectargs > 0 THEN \n            pg_catalog.array_to_string(ARRAY(\n                SELECT pg_catalog.format_type(p.proargtypes[s.i], NULL)\n                FROM pg_catalog.generate_series(0, pg_catalog.array_length(p.proargtypes, 1) - 1) AS s(i)\n            ), ', ') \n        ELSE \n            pg_catalog.pg_get_function_arguments(p.oid) \n    END || ') (' ||\n    'SFUNC = ' || quote_ident(sf_n.nspname) || '.' || quote_ident(sf.proname) || ', ' ||\n    'STYPE = ' || format_type(a.aggtranstype, NULL) ||\n    CASE WHEN a.aggfinalfn != 0 THEN ', FINALFUNC = ' || quote_ident(ff_n.nspname) || '.' || quote_ident(ff.proname) ELSE '' END ||\n    CASE WHEN a.agginitval IS NOT NULL THEN ', INITCOND = ' || quote_literal(a.agginitval) ELSE '' END ||\n    ');' AS query\nFROM \n    pg_aggregate a\nJOIN \n    pg_proc p ON p.oid = a.aggfnoid\nJOIN \n    pg_namespace n ON n.oid = p.pronamespace\nJOIN \n    pg_proc sf ON sf.oid = a.aggtransfn\nJOIN \n    pg_namespace sf_n ON sf_n.oid = sf.pronamespace\nLEFT JOIN \n    pg_proc ff ON ff.oid = a.aggfinalfn\nLEFT JOIN \n    pg_namespace ff_n ON ff_n.oid = ff.pronamespace\nWHERE \n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY \n    n.nspname, p.proname;"
+        "sql": "SELECT \n    'CREATE AGGREGATE ' || quote_ident(n.nspname) || '.' || quote_ident(p.proname) ||\n    '(' || \n    CASE \n        WHEN a.aggnumdirectargs > 0 THEN \n            pg_catalog.array_to_string(ARRAY(\n                SELECT pg_catalog.format_type(p.proargtypes[s.i], NULL)\n                FROM pg_catalog.generate_series(0, pg_catalog.array_length(p.proargtypes, 1) - 1) AS s(i)\n            ), ', ') \n        ELSE \n            pg_catalog.pg_get_function_arguments(p.oid) \n    END || ') (' ||\n    'SFUNC = ' || quote_ident(sf_n.nspname) || '.' || quote_ident(sf.proname) || ', ' ||\n    'STYPE = ' || format_type(a.aggtranstype, NULL) ||\n    CASE\n      WHEN a.aggfinalfn != 0 THEN ', FINALFUNC = ' || quote_ident(ff_n.nspname) || '.' || quote_ident(ff.proname)\n      ELSE ''\n    END ||\n    CASE\n      WHEN a.agginitval IS NOT NULL THEN ', INITCOND = ' || quote_literal(a.agginitval)\n      ELSE ''\n    END ||\n    ');' AS query\nFROM \n    pg_aggregate a\nJOIN \n    pg_proc p ON p.oid = a.aggfnoid\nJOIN \n    pg_namespace n ON n.oid = p.pronamespace\nJOIN \n    pg_proc sf ON sf.oid = a.aggtransfn\nJOIN \n    pg_namespace sf_n ON sf_n.oid = sf.pronamespace\nLEFT JOIN \n    pg_proc ff ON ff.oid = a.aggfinalfn\nLEFT JOIN \n    pg_namespace ff_n ON ff_n.oid = ff.pronamespace\nWHERE \n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY \n    n.nspname, p.proname;"
       },
       {
-        "id": "21",
+        "id": "30",
         "title": "Casts",
         "description": "Shows CREATE CAST statements for all casts in the database",
         "sql": "SELECT\n  'CREATE CAST (' || format_type(castsource, NULL) ||\n  ' AS ' || format_type(casttarget, NULL) || ')\n' ||\n  CASE castmethod\n    WHEN 'f' THEN '  WITH FUNCTION ' || quote_ident(n.nspname) || '.' || quote_ident(p.proname) || '(' || pg_get_function_arguments(p.oid) || ')\n'\n    WHEN 'i' THEN '  WITH INOUT\n'\n    WHEN 'b' THEN '  WITHOUT FUNCTION\n'\n  END ||\n  CASE castcontext\n    WHEN 'e' THEN '  AS EXPLICIT'\n    WHEN 'a' THEN '  AS ASSIGNMENT'\n    WHEN 'i' THEN '  AS IMPLICIT'\n  END || ';' AS query\nFROM\n  pg_cast c\n  LEFT JOIN pg_proc p ON c.castfunc = p.oid\n  LEFT JOIN pg_namespace n ON p.pronamespace = n.oid\nWHERE\n  (n.nspname NOT IN ('pg_catalog', 'information_schema') OR n.nspname IS NULL)\nORDER BY\n  format_type(castsource, NULL), format_type(casttarget, NULL);"
       },
       {
-        "id": "22",
+        "id": "31",
         "title": "Constraints",
         "description": "Shows ALTER TABLE statements for all table constraints in the database",
-        "sql": "SELECT\n  'ALTER TABLE ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(t.relname) ||\n  ' ADD CONSTRAINT ' || quote_ident(c.conname) || ' ' ||\n  pg_get_constraintdef(c.oid) || ';' AS query\nFROM\n  pg_constraint c\n  JOIN pg_class t ON c.conrelid = t.oid\n  JOIN pg_namespace n ON n.oid = t.relnamespace\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast');"
+        "sql": "SELECT\n  'ALTER TABLE ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n  ' ADD CONSTRAINT ' || quote_ident(c.conname) || ' ' ||\n  pg_get_constraintdef(c.oid) || ';' AS query\nFROM\n  pg_constraint c\n  JOIN pg_class t ON c.conrelid = t.oid\n  JOIN pg_namespace n ON n.oid = t.relnamespace\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast');"
       },
       {
-        "id": "23",
+        "id": "32",
         "title": "Triggers",
         "description": "Shows CREATE TRIGGER statements for all triggers in the database",
         "sql": "SELECT\n    'CREATE TRIGGER ' || quote_ident(t.tgname) ||\n    ' ' || pg_get_triggerdef(t.oid) || ';' AS query\nFROM\n    pg_trigger t\n    JOIN pg_class c ON t.tgrelid = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    NOT t.tgisinternal\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, c.relname, t.tgname;"
       },
       {
-        "id": "24",
+        "id": "33",
         "title": "Rules",
         "description": "Shows CREATE RULE statements for all rules in the database",
         "sql": "SELECT\n    pg_get_ruledef(r.oid, true) || ';' AS query\nFROM\n    pg_rewrite r\n    JOIN pg_class c ON r.ev_class = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND r.rulename <> '_RETURN'\nORDER BY\n    n.nspname, c.relname, r.rulename;"
       },
       {
-        "id": "25",
+        "id": "34",
         "title": "Domains",
         "description": "Shows CREATE DOMAIN statements for all domains in the database",
         "sql": "SELECT\n    'CREATE DOMAIN ' || quote_ident(n.nspname) || '.' || quote_ident(t.typname) ||\n    ' AS ' || pg_catalog.format_type(t.typbasetype, t.typtypmod) ||\n    (CASE WHEN t.typnotnull THEN ' NOT NULL' ELSE '' END) ||\n    (CASE WHEN t.typdefault IS NOT NULL THEN ' DEFAULT ' || t.typdefault ELSE '' END) ||\n    (CASE WHEN c.oid IS NOT NULL THEN ' ' ||\n        pg_catalog.pg_get_constraintdef(c.oid, true) ELSE '' END) || ';' AS query\nFROM\n    pg_type t\n    JOIN pg_namespace n ON n.oid = t.typnamespace\n    LEFT JOIN pg_constraint c ON c.contypid = t.oid\nWHERE\n    t.typtype = 'd' AND\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, t.typname;"
       },
       {
-        "id": "26",
+        "id": "35",
         "title": "Collations",
         "description": "Shows CREATE COLLATION statements for all collations in the database",
         "sql": "SELECT\n    'CREATE COLLATION ' || quote_ident(n.nspname) || '.' || quote_ident(c.collname) ||\n    ' (LC_COLLATE = ' || quote_literal(c.collcollate) ||\n    ', LC_CTYPE = ' || quote_literal(c.collctype) ||\n    CASE\n      WHEN c.collprovider = 'd' THEN ', PROVIDER = icu'\n      ELSE ', PROVIDER = libc'\n    END ||\n    CASE\n      WHEN c.collversion IS NOT NULL THEN ', VERSION = ' || quote_literal(c.collversion)\n      ELSE ''\n    END ||\n    ');' AS query\nFROM\n    pg_collation c\n    JOIN pg_namespace n ON n.oid = c.collnamespace\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, c.collname;"
       },
       {
-        "id": "27",
+        "id": "36",
         "title": "Operators",
         "description": "Shows CREATE OPERATOR statements for all operators in the database",
         "sql": "SELECT\n    'CREATE OPERATOR ' || quote_ident(n.nspname) || '.' || quote_ident(o.oprname) ||\n    ' (' ||\n    'PROCEDURE = ' || (SELECT quote_ident(n2.nspname) || '.' || quote_ident(p.proname)\n                       FROM pg_proc p\n                       JOIN pg_namespace n2 ON p.pronamespace = n2.oid\n                       WHERE p.oid = o.oprcode) ||\n    CASE\n      WHEN o.oprleft <> 0 THEN ', LEFTARG = ' || pg_catalog.format_type(o.oprleft, NULL)\n      ELSE ''\n    END ||\n    CASE\n      WHEN o.oprright <> 0 THEN ', RIGHTARG = ' || pg_catalog.format_type(o.oprright, NULL)\n      ELSE ''\n    END ||\n    ');' AS query\nFROM\n    pg_operator o\n    JOIN pg_namespace n ON o.oprnamespace = n.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, o.oprname;"
       },
       {
-        "id": "28",
+        "id": "37",
         "title": "Text Search Configurations",
         "description": "Shows CREATE TEXT SEARCH CONFIGURATION statements for all text search configurations in the database",
         "sql": "SELECT\n    'CREATE TEXT SEARCH CONFIGURATION ' || quote_ident(n.nspname) || '.' || quote_ident(c.cfgname) ||\n    ' (PARSER = ' || quote_ident(np.nspname) || '.' || quote_ident(p.prsname) || ');' AS query\nFROM\n    pg_ts_config c\n    JOIN pg_namespace n ON c.cfgnamespace = n.oid\n    JOIN pg_ts_parser p ON c.cfgparser = p.oid\n    JOIN pg_namespace np ON p.prsnamespace = np.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, c.cfgname;"
       },
       {
-        "id": "29",
+        "id": "38",
         "title": "Search Configuration Mappings",
         "description": "Shows ALTER TEXT SEARCH CONFIGURATION statements for all text search configuration mappings in the database",
         "sql": "SELECT\n    'ALTER TEXT SEARCH CONFIGURATION ' || quote_ident(n.nspname) || '.' || quote_ident(c.cfgname) ||\n    ' ADD MAPPING FOR ' || quote_ident(c.mapcfg::text) ||\n    ' WITH ' || quote_ident(nd.nspname) || '.' || quote_ident(d.dictname) || ';'\nFROM\n    (\n        SELECT\n            c.*,\n            m.mapcfg,\n            m.mapdict,\n            row_number() OVER (PARTITION BY c.oid ORDER BY m.mapcfg) as rn\n        FROM\n            pg_ts_config c\n            LEFT JOIN pg_ts_config_map m ON c.oid = m.mapcfg\n    ) c\n    JOIN pg_namespace n ON c.cfgnamespace = n.oid\n    JOIN pg_ts_parser p ON c.cfgparser = p.oid\n    JOIN pg_namespace np ON p.prsnamespace = np.oid\n    LEFT JOIN pg_ts_dict d ON c.mapdict = d.oid\n    LEFT JOIN pg_namespace nd ON d.dictnamespace = nd.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, c.cfgname;"
       },
       {
-        "id": "30",
+        "id": "39",
         "title": "Text Search Dictionaries",
         "description": "Shows CREATE TEXT SEARCH DICTIONARY statements for all text search dictionaries in the database",
         "sql": "SELECT\n    'CREATE TEXT SEARCH DICTIONARY ' || quote_ident(n.nspname) || '.' || quote_ident(d.dictname) ||\n    ' (' ||\n    'TEMPLATE = ' || quote_ident(nt.nspname) || '.' || quote_ident(t.tmplname) ||\n    CASE\n      WHEN d.dictinitoption IS NOT NULL THEN ', ' || d.dictinitoption\n      ELSE ''\n    END ||\n    ');' AS query\nFROM\n    pg_ts_dict d\n    JOIN pg_ts_template t ON d.dicttemplate = t.oid\n    JOIN pg_namespace n ON d.dictnamespace = n.oid\n    JOIN pg_namespace nt ON t.tmplnamespace = nt.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nORDER BY\n    n.nspname, d.dictname;"
       },
       {
-        "id": "31",
+        "id": "40",
         "title": "Schemas",
         "description": "Shows CREATE SCHEMA statements for all schemas in the database",
         "sql": "SELECT\n  'CREATE SCHEMA ' || quote_ident(nspname) || ';\n' ||\n  CASE\n    WHEN nspowner <> (SELECT oid FROM pg_roles WHERE rolname = CURRENT_USER)\n    THEN 'ALTER SCHEMA ' || quote_ident(nspname) || ' OWNER TO ' || quote_ident(r.rolname) || ';'\n    ELSE ''\n  END AS query\nFROM\n  pg_namespace n\n  JOIN pg_roles r ON n.nspowner = r.oid\nWHERE\n  nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')\n  AND nspname NOT LIKE 'pg_%'\nORDER BY\n  nspname;"
       },
       {
-        "id": "32",
+        "id": "41",
         "title": "Composite Types",
         "description": "Shows CREATE TYPE statements for composite types",
         "sql": "SELECT\n    'CREATE TYPE ' || quote_ident(n.nspname) || '.' || quote_ident(t.typname) ||\n    ' AS (' ||\n    string_agg(\n        quote_ident(a.attname) || ' ' || format_type(a.atttypid, a.atttypmod),\n        ', '\n        ORDER BY a.attnum\n    ) || ');' AS query\nFROM\n    pg_type t\n    JOIN pg_namespace n ON n.oid = t.typnamespace\n    JOIN pg_class c ON c.oid = t.typrelid\n    JOIN pg_attribute a ON a.attrelid = c.oid\nWHERE\n    t.typtype = 'c'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND a.attnum > 0 AND NOT a.attisdropped\nGROUP BY\n    n.nspname, t.typname;"
       },
       {
-        "id": "33",
+        "id": "42",
         "title": "Enumerated Types",
         "description": "Shows CREATE TYPE statements for enumerated types",
         "sql": "SELECT\n    'CREATE TYPE ' || quote_ident(n.nspname) || '.' || quote_ident(t.typname) ||\n    ' AS ENUM (' ||\n    string_agg(quote_literal(e.enumlabel), ', ' ORDER BY e.enumsortorder) ||\n    ');' AS query\nFROM\n    pg_type t\n    JOIN pg_namespace n ON n.oid = t.typnamespace\n    JOIN pg_enum e ON t.oid = e.enumtypid\nWHERE\n    t.typtype = 'e'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\nGROUP BY\n    n.nspname, t.typname;"
       },
       {
-        "id": "34",
+        "id": "43",
         "title": "Materialized Views",
         "description": "Shows CREATE MATERIALIZED VIEW statements",
         "sql": "SELECT\n    'CREATE MATERIALIZED VIEW ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    ' AS ' || pg_get_viewdef(c.oid, true) ||\n    ';' AS query\nFROM\n    pg_class c\n    JOIN pg_namespace n ON n.oid = c.relnamespace\nWHERE\n    c.relkind = 'm'\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema');"
       },
       {
-        "id": "35",
+        "id": "44",
         "title": "Text Search Parsers",
         "description": "Shows CREATE TEXT SEARCH PARSER statements",
         "sql": "SELECT\n  'CREATE TEXT SEARCH PARSER ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(p.prsname) || ' (' ||\n  'START = ' || quote_ident(ns.nspname) || '.' || p.prsstart::text || ', ' ||\n  'GETTOKEN = ' || quote_ident(ng.nspname) || '.' || p.prstoken::text || ', ' ||\n  'END = ' || quote_ident(ne.nspname) || '.' || p.prsend::text || ', ' ||\n  'LEXTYPES = ' || quote_ident(nl.nspname) || '.' || p.prslextype::text ||\n  CASE\n    WHEN p.prsheadline IS NOT NULL THEN ', HEADLINE = ' || quote_ident(nh.nspname) || '.' || p.prsheadline::text\n    ELSE ''\n  END || ');' AS query\nFROM\n  pg_ts_parser p\n  JOIN pg_namespace n ON p.prsnamespace = n.oid\n  JOIN pg_proc ps ON p.prsstart = ps.oid\n  JOIN pg_namespace ns ON ps.pronamespace = ns.oid\n  JOIN pg_proc pg ON p.prstoken = pg.oid\n  JOIN pg_namespace ng ON pg.pronamespace = ng.oid\n  JOIN pg_proc pe ON p.prsend = pe.oid\n  JOIN pg_namespace ne ON pe.pronamespace = ne.oid\n  JOIN pg_proc pl ON p.prslextype = pl.oid\n  JOIN pg_namespace nl ON pl.pronamespace = nl.oid\n  LEFT JOIN pg_proc ph ON p.prsheadline = ph.oid\n  LEFT JOIN pg_namespace nh ON ph.pronamespace = nh.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema');"
       },
       {
-        "id": "36",
+        "id": "45",
         "title": "Text Search Templates",
         "description": "Shows CREATE TEXT SEARCH TEMPLATE statements",
         "sql": "SELECT\n  'CREATE TEXT SEARCH TEMPLATE ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(p.tmplname) || ' (' ||\n  CASE\n    WHEN p.tmplinit::text IS NOT NULL THEN 'INIT = ' || quote_ident(ni.nspname) || '.' || p.tmplinit::text || ', '\n    ELSE ''\n  END ||\n  'LEXIZE = ' || quote_ident(nl.nspname) || '.' || p.tmpllexize::text || ');' AS query\nFROM\n  pg_ts_template p\n  JOIN pg_namespace n ON p.tmplnamespace = n.oid\n  JOIN pg_proc pl ON p.tmpllexize = pl.oid\n  JOIN pg_namespace nl ON pl.pronamespace = nl.oid\n  LEFT JOIN pg_proc pi ON p.tmplinit = pi.oid\n  LEFT JOIN pg_namespace ni ON pi.pronamespace = ni.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema');"
       },
       {
-        "id": "37",
+        "id": "46",
         "title": "Text Search Dictionaries",
         "description": "Shows CREATE TEXT SEARCH DICTIONARY statements",
         "sql": "SELECT\n  'CREATE TEXT SEARCH DICTIONARY ' ||\n  quote_ident(n.nspname) || '.' || quote_ident(d.dictname) || ' (' ||\n  'TEMPLATE = ' || quote_ident(nt.nspname) || '.' || quote_ident(t.tmplname) ||\n  CASE\n    WHEN d.dictinitoption IS NOT NULL THEN ', ' || d.dictinitoption\n    ELSE ''\n  END || ');' AS query\nFROM\n  pg_ts_dict d\n  JOIN pg_ts_template t ON d.dicttemplate = t.oid\n  JOIN pg_namespace n ON d.dictnamespace = n.oid\n  JOIN pg_namespace nt ON t.tmplnamespace = nt.oid\nWHERE\n  n.nspname NOT IN ('pg_catalog', 'information_schema');"
       },
       {
-        "id": "38",
+        "id": "47",
         "title": "Foreign Data Wrappers",
         "description": "Shows CREATE FOREIGN DATA WRAPPER statements",
         "sql": "SELECT\n    'CREATE FOREIGN DATA WRAPPER ' || quote_ident(fdw.fdwname) ||\n    CASE\n      WHEN fdw.fdwhandler <> 0 THEN ' HANDLER ' || pg_get_function_identity_arguments(fdw.fdwhandler)\n      ELSE ''\n    END ||\n    CASE\n      WHEN fdw.fdwvalidator <> 0 THEN ' VALIDATOR ' || pg_get_function_identity_arguments(fdw.fdwvalidator)\n      ELSE ''\n    END || ';' AS query\nFROM\n    pg_foreign_data_wrapper fdw\nWHERE\n    fdw.fdwname NOT IN ('postgres_fdw', 'file_fdw');"
       },
       {
-        "id": "39",
+        "id": "48",
         "title": "Foreign Servers",
         "description": "Shows CREATE SERVER statements",
         "sql": "SELECT\n    'CREATE SERVER ' || quote_ident(srv.srvname) ||\n    ' FOREIGN DATA WRAPPER ' || quote_ident(fdw.fdwname) ||\n    CASE\n      WHEN srv.srvtype IS NOT NULL THEN ' TYPE ' || quote_literal(srv.srvtype)\n      ELSE ''\n    END ||\n    CASE\n      WHEN srv.srvversion IS NOT NULL THEN ' VERSION ' || quote_literal(srv.srvversion)\n      ELSE ''\n    END ||\n    (CASE\n      WHEN srv.srvoptions IS NOT NULL THEN ' OPTIONS (' || array_to_string(srv.srvoptions, ', ') || ')'\n      ELSE ''\n    END) || ';' AS query\nFROM\n    pg_foreign_server srv\n    JOIN pg_foreign_data_wrapper fdw ON srv.srvfdw = fdw.oid;"
       },
       {
-        "id": "40",
+        "id": "49",
         "title": "User Mappings",
         "description": "Shows CREATE USER MAPPING statements",
         "sql": "SELECT\n    'CREATE USER MAPPING FOR ' || quote_ident(um.usename) ||\n    ' SERVER ' || quote_ident(srv.srvname) ||\n    (CASE\n      WHEN um.umoptions IS NOT NULL THEN ' OPTIONS (' || array_to_string(um.umoptions, ', ') || ')'\n      ELSE ''\n    END) || ';' AS query\nFROM\n    pg_user_mappings um\n    JOIN pg_foreign_server srv ON um.srvid = srv.oid;"
       },
       {
-        "id": "41",
+        "id": "50",
         "title": "Row Level Security Policies",
         "description": "Shows CREATE POLICY statements",
         "sql": "SELECT\n    'CREATE POLICY ' || quote_ident(pol.polname) ||\n    ' ON ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    CASE\n      WHEN pol.polcmd::text != '*' THEN ' FOR ' || pol.polcmd::text\n      ELSE ''\n    END ||\n    CASE\n      WHEN pol.polroles <> '{0}' THEN\n        ' TO ' || array_to_string(array(\n          SELECT quote_ident(rolname)\n          FROM pg_roles\n          WHERE oid = ANY(pol.polroles)\n        ), ', ')\n      ELSE ''\n    END ||\n    CASE\n      WHEN pol.polqual IS NOT NULL THEN ' USING (' || pg_get_expr(pol.polqual, pol.polrelid) || ')'\n      ELSE ''\n    END ||\n    CASE\n      WHEN pol.polwithcheck IS NOT NULL THEN ' WITH CHECK (' || pg_get_expr(pol.polwithcheck, pol.polrelid) || ')'\n      ELSE ''\n    END || ';' AS query\nFROM\n    pg_policy pol\n    JOIN pg_class c ON pol.polrelid = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema');"
       },
       {
-        "id": "42",
+        "id": "51",
         "title": "Publications",
         "description": "Shows CREATE PUBLICATION statements",
         "sql": "SELECT\n    'CREATE PUBLICATION ' || quote_ident(pub.pubname) ||\n    CASE\n      WHEN pub.puballtables THEN ' FOR ALL TABLES'\n      ELSE ' FOR TABLE ' || string_agg(quote_ident(n.nspname) || '.' || quote_ident(c.relname), ', ')\n    END || ';' AS query\nFROM\n    pg_publication pub\n    LEFT JOIN pg_publication_rel pr ON pub.oid = pr.prpubid\n    LEFT JOIN pg_class c ON pr.prrelid = c.oid\n    LEFT JOIN pg_namespace n ON c.relnamespace = n.oid\nGROUP BY\n    pub.pubname,\n    pub.puballtables;"
       },
       {
-        "id": "43",
+        "id": "52",
         "title": "Extensions",
         "description": "Shows CREATE EXTENSION statements",
         "sql": "SELECT\n    'CREATE EXTENSION IF NOT EXISTS ' || quote_ident(ext.extname) ||\n    ' WITH SCHEMA ' || quote_ident(n.nspname) ||\n    CASE\n      WHEN ext.extversion IS NOT NULL THEN ' VERSION ' || quote_literal(ext.extversion)\n      ELSE ''\n    END || ';' AS query\nFROM\n    pg_extension ext\n    JOIN pg_namespace n ON ext.extnamespace = n.oid\nWHERE\n    ext.extname NOT IN ('plpgsql');"
       },
       {
-        "id": "44",
+        "id": "53",
         "title": "Statistics",
         "description": "Shows CREATE STATISTICS statements",
         "sql": "SELECT\n    'CREATE STATISTICS ' || quote_ident(s.stxname) ||\n    ' (' || array_to_string(ARRAY(\n        SELECT\n            CASE\n                WHEN stxkind[i] = 'd' THEN 'NDISTINCT'\n                WHEN stxkind[i] = 'f' THEN 'DEPENDENCIES'\n                WHEN stxkind[i] = 'm' THEN 'MCV'\n            END\n        FROM generate_subscripts(s.stxkind, 1) as i\n    ), ', ') || ')' ||\n    ' ON ' || array_to_string(ARRAY_AGG(quote_ident(a.attname)), ', ') ||\n    ' FROM ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) || ';' AS query\nFROM\n    pg_statistic_ext s\n    JOIN pg_class c ON s.stxrelid = c.oid\n    JOIN pg_namespace n ON c.relnamespace = n.oid\n    JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(s.stxkeys)\nWHERE\n    n.nspname NOT IN ('pg_catalog', 'information_schema')\nGROUP BY\n    s.stxname,\n    s.stxkind,\n    n.nspname,\n    c.relname;"
       },
       {
-        "id": "45",
+        "id": "54",
         "title": "Comments",
         "description": "Shows COMMENT ON statements for tables, views, and materialized views",
         "sql": "SELECT\n    'COMMENT ON TABLE ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname) ||\n    ' IS ' || quote_literal(obj_description(c.oid, 'pg_class')) || ';' AS query\nFROM\n    pg_class c\n    JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE\n    c.relkind IN ('r', 'v', 'm')\n    AND n.nspname NOT IN ('pg_catalog', 'information_schema')\n    AND obj_description(c.oid, 'pg_class') IS NOT NULL;"
